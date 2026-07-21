@@ -35,6 +35,27 @@ p0p4_path_without_jq() {
     done
 }
 
+p0p4_path_without_jq_or_python3() {
+    local tmpbin="$1"
+    local d
+    local f
+    local name
+
+    mkdir -p "$tmpbin"
+    for d in /bin /usr/bin /usr/sbin /sbin; do
+        [[ -d "$d" ]] || continue
+        for f in "$d"/*; do
+            name="$(basename "$f")"
+            [[ "$name" == "jq" || "$name" == "python3" ]] && continue
+            [[ -e "$tmpbin/$name" ]] || ln -s "$f" "$tmpbin/$name" 2>/dev/null || true
+        done
+    done
+
+    if command -v robocopy.exe >/dev/null 2>&1; then
+        ln -sf "$(command -v robocopy.exe)" "$tmpbin/robocopy.exe"
+    fi
+}
+
 test_start "Codex reinstall keeps one lean framework block and one memory protocol block"
 INSTALL_HOME="$(mktemp -d)"
 p0p4_register_cleanup "$INSTALL_HOME"
@@ -61,6 +82,7 @@ if HOME="$INSTALL_HOME" bash "$FRAMEWORK_DIR/install.sh" --agent codex --skill a
             && grep -Fq "The orchestrator owns framework state files" "$agents_file" \
             && grep -Fq ".codex/context-map.md" "$agents_file" \
             && grep -Fq "Do not infer that subagents are unavailable from the absence of a visible tool name" "$agents_file" \
+            && grep -Fq 'Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>' "$agents_file" \
             && grep -Fq "Preserve user-authored project files and existing dirty work." "$agents_file"; then
             pass
         else
@@ -500,7 +522,7 @@ else
     fail "first install for stale tool cleanup failed; see /tmp/p0p4-install-tools-1.err"
 fi
 
-test_start "Codex reinstall refreshes stale memory-graph MCP config, preserves no-hooks profile, and file mode"
+test_start "Codex reinstall refreshes stale memory-graph MCP config, enables mandatory hooks, and preserves file mode"
 INSTALL_HOME_NINE="$(mktemp -d)"
 p0p4_register_cleanup "$INSTALL_HOME_NINE"
 mkdir -p "$INSTALL_HOME_NINE/.codex"
@@ -558,10 +580,10 @@ if HOME="$INSTALL_HOME_NINE" bash "$FRAMEWORK_DIR/install.sh" --agent codex --sk
         || grep -q "/stale/memory-graph" "$config_file" \
         || ! grep -q '^model = "test-model"$' "$config_file" \
         || ! grep -q '^\[mcp_servers\.other-server\]$' "$config_file" \
-        || ! grep -q '^hooks = false$' "$config_file" \
+        || ! grep -q '^hooks = true$' "$config_file" \
         || ! grep -q '^[[:space:]]*codex_hooks[[:space:]]*= false$' "$config_file" \
         || [[ "$config_mode" != "600" ]]; then
-        fail "expected stale Codex memory-graph command/args to refresh while preserving unrelated config, disabled hooks profile, and file mode"
+        fail "expected stale Codex memory-graph command/args to refresh while enabling mandatory hooks and preserving file mode"
     else
         missing_tool=""
         duplicate_tool=""
@@ -693,19 +715,40 @@ else
     fail "default install with Unity fixture coverage failed; see /tmp/p0p4-install-default-skills.err"
 fi
 
-test_start "deprecated --no-hooks remains a hookless no-op for one compatibility release"
+test_start "legacy --no-hooks input cannot disable mandatory Codex workflow hooks"
 CODEX_NO_HOOKS_HOME="$(mktemp -d)"
 p0p4_register_cleanup "$CODEX_NO_HOOKS_HOME"
 if HOME="$CODEX_NO_HOOKS_HOME" bash "$FRAMEWORK_DIR/install.sh" --agent codex --skill assistant-workflow --no-hooks >/tmp/p0p4-install-codex-no-hooks.out 2>/tmp/p0p4-install-codex-no-hooks.err; then
-    if [[ ! -f "$CODEX_NO_HOOKS_HOME/.codex/hooks.json" ]] \
-        && ! grep -Fq "hooks = true" "$CODEX_NO_HOOKS_HOME/.codex/config.toml" \
-        && grep -Fq -- "--no-hooks is deprecated" /tmp/p0p4-install-codex-no-hooks.err; then
+    if [[ -f "$CODEX_NO_HOOKS_HOME/.codex/hooks.json" ]] \
+        && grep -Fq "hooks = true" "$CODEX_NO_HOOKS_HOME/.codex/config.toml"; then
         pass
     else
-        fail "deprecated --no-hooks should warn without creating hooks.json or enabling hooks"
+        fail "legacy --no-hooks input disabled mandatory Codex workflow hooks"
     fi
 else
     fail "Codex --no-hooks install failed; see /tmp/p0p4-install-codex-no-hooks.err"
+fi
+
+test_start "Codex hook install uses a working python when jq and python3 are unavailable"
+CODEX_HOOK_RUNTIME_HOME="$(mktemp -d)"
+CODEX_HOOK_RUNTIME_BIN="$(mktemp -d)"
+p0p4_register_cleanup "$CODEX_HOOK_RUNTIME_HOME" "$CODEX_HOOK_RUNTIME_BIN"
+p0p4_path_without_jq_or_python3 "$CODEX_HOOK_RUNTIME_BIN"
+if [[ -x "$CODEX_HOOK_RUNTIME_BIN/python" ]] \
+    && HOME="$CODEX_HOOK_RUNTIME_HOME" PATH="$CODEX_HOOK_RUNTIME_BIN" \
+        "$CODEX_HOOK_RUNTIME_BIN/bash" "$FRAMEWORK_DIR/install.sh" --agent codex --skill assistant-workflow --no-hooks \
+        >/tmp/p0p4-install-codex-hook-runtime.out 2>/tmp/p0p4-install-codex-hook-runtime.err; then
+    installed_hooks="$CODEX_HOOK_RUNTIME_HOME/.codex/hooks/assistant"
+    if [[ -f "$CODEX_HOOK_RUNTIME_HOME/.codex/hooks.json" ]] \
+        && [[ -x "$installed_hooks/workflow-enforcer.sh" ]] \
+        && ! rg -q '\bjq\b' "$installed_hooks" \
+        && rg -Fq 'command -v python 2>/dev/null || command -v python3' "$installed_hooks/workflow-enforcer.sh"; then
+        pass
+    else
+        fail "expected Codex hook installation to work without jq or python3"
+    fi
+else
+    fail "test fixture requires a working python command without python3"
 fi
 
 p0p4_finish_suite "${BASH_SOURCE[0]}"

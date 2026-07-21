@@ -50,19 +50,34 @@ worker_status_protocol:
 # instead of copied into each role packet so role packets retain their focused
 # context schemas.
 agent_routing_plan:
+  id: agent_routing_plan
   description: "Required before every native dispatch. Select for verified outcome efficiency, then record the runtime-confirmed configuration rather than assuming requested overrides were accepted."
-  required_fields: [role, difficulty, capability_tier, reasoning_effort, selection_factors, escalation_trigger, requested_configuration, effective_configuration, runtime_fallback]
+  required_fields: [route_id, agent_name, role, difficulty, capability_tier, reasoning_effort, selection_factors, escalation_trigger, requested_configuration, effective_configuration, runtime_fallback]
   enums:
+    route_id: [map_fast, discover_balanced, discover_frontier, implement_balanced, implement_frontier, verify_balanced, verify_frontier, design_frontier, review_frontier, qa_frontier]
     difficulty: [bounded, standard, complex, critical]
     capability_tier: [fast, balanced, frontier]
     reasoning_effort: [low, medium, high, xhigh, max]
   packet_rules:
     - "Before native dispatch, attach one complete agent_routing_plan to the selected handoff and validate every required field."
-    - "requested_configuration records the role, model/tier, reasoning, and runtime options requested by the orchestrator."
-    - "Before invocation, effective_configuration is an explicit pending_runtime_confirmation record; after return it records only configuration acknowledged by the runtime/tool result, using explicit unavailable or default values when an override is not exposed."
-    - "runtime_fallback names the direct/default/alternate route and evidence when the requested configuration is unavailable, rejected, or materially changed."
-    - "max reasoning_effort is exceptional: use it only when critical risk, unresolved high-impact ambiguity, or repeated verified failure makes lower effort insufficient; record that trigger."
+    - "Validate route_id, agent_name, requested_configuration.route_id, and requested_configuration.agent_name as one binding against the canonical Route policy row in references/subagent-dispatch.md. This is a pre-dispatch contract check, not evidence that the runtime enforced or applied the selection; Luna is mapping-only."
+    - "requested_configuration records route_id, agent_name, model, reasoning_effort, strategy, and optional native model/model_reasoning_effort overrides requested by the orchestrator."
+    - "Before invocation, effective_configuration is an explicit pending_runtime_confirmation record. After return it is confirmed only by configuration acknowledged in runtime/tool evidence; otherwise record unavailable and preserve requested values as intent."
+    - "runtime_fallback records strategy, reason, and evidence when the requested configuration is unavailable, rejected, or materially changed. static_profile is valid when no runtime override was requested or exposed."
+    - "max reasoning_effort is exceptional: reject it unless critical risk is paired with unresolved high-impact ambiguity or repeated verified failure after lower adequate efforts; record that compound trigger."
     - "A missing or invalid plan blocks native dispatch. A direct_fallback still records why no native dispatch occurred."
+
+title_metadata:
+  id: title_metadata
+  description: "Evidence-backed title record for the top-level native task and each native subagent dispatch. It records requested title intent separately from runtime-confirmed effective title state."
+  required_fields: [requested_title, effective_title, status, evidence_source]
+  enums:
+    status: [pending_runtime_confirmation, confirmed, unavailable]
+  packet_rules:
+    - "Use the exact title shape: Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>."
+    - "Before runtime title evidence exists, record status=pending_runtime_confirmation, retain pending-runtime in effective_title, and set evidence_source=pending."
+    - "Set status=confirmed only when the native title API or runtime/tool result confirms the effective title. Set unavailable when the surface cannot report or mutate the title, with evidence_source describing that limitation."
+    - "A requested_title is intent, not proof that a title was set. Every native subagent dispatch records title_metadata because child-task title mutation may be unavailable."
 
 # ─────────────────────────────────────────────
 # Typed Artifact Reference Protocol

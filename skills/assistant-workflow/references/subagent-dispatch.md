@@ -7,8 +7,12 @@ For full role prompts, read `references/subagent-roles.md`.
 ## Agent Routing Plan
 
 Before every native dispatch, create the public `agent_routing_plan` defined in
-`contracts/handoffs.yaml`. It is required even if the active runtime cannot
-honor model overrides. Record:
+`contracts/handoffs.yaml`; select it through `contracts/index.yaml` under
+`selected_handoff` before the role-specific handoff. It is required even if the active runtime cannot
+honor model overrides. `model` and `model_reasoning_effort` are optional native
+subtask arguments: request them only when the runtime supports an override.
+The route's static profile remains requested intent, never proof of effective
+runtime configuration. Record:
 
 | Field | Allowed values / requirement |
 |---|---|
@@ -18,15 +22,107 @@ honor model overrides. Record:
 | `reasoning_effort` | `low`, `medium`, `high`, `xhigh`, or exceptional `max` |
 | `selection_factors` | Concrete scope, risk, uncertainty, verification, and tool-access reasons |
 | `escalation_trigger` | Observable condition that requires a stronger route or re-triage |
+| `route_id` | One route from the policy table below |
+| `agent_name` | Selected native agent name from the route |
 | `requested_configuration` | What the orchestrator asked the runtime to use |
 | `effective_configuration` | What the runtime/tool result confirms it used; never assume it equals requested |
 | `runtime_fallback` | Default/direct/alternate route and evidence when requested configuration is unavailable |
 
-Use `max` only for critical risk, unresolved high-impact ambiguity, or repeated
-verified failure after lower adequate efforts. Selection means efficient verified
-outcomes, not a blanket cheapest-model rule. If the runtime exposes no override,
-request the configured role, record the default as effective, and keep the role
-and verification boundaries unchanged.
+Use `max` only when **critical risk** is paired with **unresolved high-impact
+ambiguity** or **repeated verified failure** after lower adequate efforts.
+Selection means efficient verified outcomes, not a blanket cheapest-model rule.
+
+### Route policy (canonical)
+
+This table is the policy source for route selection. `model` and
+`reasoning_effort` are the static profile recorded under
+`requested_configuration`; they become effective only when runtime evidence
+confirms them.
+
+The selected `route_id`, `agent_name`, and their copies in
+`requested_configuration` are one binding: validate all four values against
+this row before dispatch. This validates the recorded request, not runtime
+enforcement or effective configuration.
+
+| `route_id` | Native `agent_name` | Static profile | Use |
+|---|---|---|---|
+| `map_fast` | `code-mapper-fast` | `gpt-5.6-luna` / `low` | Bounded, read-only structural mapping only |
+| `discover_balanced` | `explorer` | `gpt-5.6-terra` / `medium` | Ordinary bounded discovery with meaningful tracing |
+| `discover_frontier` | `explorer-frontier` | `gpt-5.6-sol` / `high` | Critical or conflicting-evidence investigation |
+| `implement_balanced` | `code-writer` | `gpt-5.6-terra` / `medium` | Approved standard implementation slice |
+| `implement_frontier` | `code-writer-frontier` | `gpt-5.6-sol` / `high` | High-impact implementation needing deeper reasoning |
+| `verify_balanced` | `builder-tester` | `gpt-5.6-terra` / `medium` | Ordinary build, test, and validation work |
+| `verify_frontier` | `builder-tester-frontier` | `gpt-5.6-sol` / `high` | High-impact or repeatedly failing verification |
+| `design_frontier` | `architect` | `gpt-5.6-sol` / `high` | Architecture or design with critical impact |
+| `review_frontier` | `code-reviewer` | `gpt-5.6-sol` / `high` | High-risk security, migration, or architecture review |
+| `qa_frontier` | `qa-evaluator` | `gpt-5.6-sol` / `high` | High-impact acceptance evaluation |
+
+Luna remains mapping-only: do not route `code-mapper-fast` to design,
+implementation, verification, review, or QA work. Promote a route only when
+evidence shows coupled modules, security or migration impact, conflicting
+evidence, non-deterministic validation failures, or repeated verified failure.
+Record the observed trigger in `selection_factors` and `escalation_trigger`;
+do not promote based on size, importance, or preference alone.
+
+### Intent, runtime reality, and fallback
+
+Use this shape before dispatch; `model` and `reasoning_effort` are requested
+profile values, while `model_reasoning_effort` is the optional native subtask
+argument that carries the same requested effort when the runtime exposes it:
+
+```yaml
+route_id: implement_balanced
+agent_name: code-writer
+requested_configuration:
+  route_id: implement_balanced
+  agent_name: code-writer
+  model: gpt-5.6-terra
+  reasoning_effort: medium
+  strategy: static_profile
+effective_configuration:
+  status: pending_runtime_confirmation
+  agent_name: code-writer
+  model: null
+  reasoning_effort: null
+  evidence_source: pending
+runtime_fallback:
+  strategy: static_profile
+  reason: runtime override not requested
+```
+
+After dispatch, set `effective_configuration.status: confirmed` only when a
+runtime/tool result identifies the applied configuration. If that result does
+not expose or rejects the override, use `status: unavailable`, preserve the
+requested values as intent, and cite the returned evidence. A pending record
+may remain only while runtime confirmation is still possible; it blocks
+completion if it is still pending at the relevant completion gate.
+
+## Native Task Title
+
+Before a top-level Codex task starts work, set its task title through the
+native title API using this exact compact shape:
+
+`Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>`
+
+Use `pending-runtime` until the runtime/tool result confirms the effective
+configuration. Update the title after that confirmation. The current native
+hook and subagent surfaces do not expose a child-task title mutation API, so
+record this same string as `title_metadata` in every subagent dispatch log.
+Never substitute the requested configuration for the effective one.
+
+Record title metadata as evidence, not as a success claim:
+
+```yaml
+title_metadata:
+  requested_title: "Req: gpt-5.6-terra/medium | Real: pending-runtime/pending-runtime | approved slice"
+  effective_title: "Req: gpt-5.6-terra/medium | Real: pending-runtime/pending-runtime | approved slice"
+  status: pending_runtime_confirmation
+  evidence_source: pending
+```
+
+Set `status: confirmed` only with native title API or runtime/tool evidence.
+When that surface cannot report or mutate the title, use `status: unavailable`
+and record the limitation in `evidence_source`.
 
 ## Delegation Policy State
 

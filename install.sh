@@ -2,8 +2,8 @@
 # install.sh — Installs all Assistant Framework skills for any supported AI agent.
 #
 # Auto-discovers first-class release skills from skills/assistant-*/SKILL.md.
-# Also installs legacy graph seed/import compatibility data and performs one
-# release of cleanup for retired Assistant Framework hook registrations.
+# Also installs legacy graph seed/import compatibility data and the mandatory
+# Codex workflow hooks.
 #
 # Usage:
 #   ./install.sh --agent claude     # → ~/.claude/skills/assistant-*/
@@ -14,8 +14,7 @@
 #   ./install.sh --agent codex --plugin assistant-core      # core profile only
 #   ./install.sh --agent codex --plugin assistant-research  # research profile only
 #   ./install.sh --agent codex --plugin assistant-dev       # development profile only
-#   ./install.sh --agent codex                              # native, hookless behavior
-#   ./install.sh --agent claude --no-hooks                  # deprecated compatibility no-op
+#   ./install.sh --agent codex                              # native workflow hooks enabled
 #
 # Legacy graph seed compatibility data is installed to ~/.{agent}/memory/graph.jsonl
 # only if it doesn't already exist — existing legacy data is never overwritten.
@@ -48,7 +47,6 @@ Options:
   --skill NAME       Install only one skill (default: all)
   --plugin NAME      Install a planned plugin profile such as assistant-core, assistant-research, or assistant-dev
   --adaptive-routing Apply the Codex adaptive model and reasoning policy to existing local guidance and config
-  --no-hooks         Deprecated compatibility no-op; all installs are hookless
   --dry-run          Show what would be done without doing it
   -h, --help         Show this help
 
@@ -69,7 +67,6 @@ Examples:
   $(basename "$0") --agent claude
   $(basename "$0") --agent codex --dry-run
   $(basename "$0") --agent claude --skill assistant-thinking
-  $(basename "$0") --agent claude --no-hooks
   $(basename "$0") --agent codex --plugin assistant-core
   $(basename "$0") --agent codex --plugin assistant-research
   $(basename "$0") --agent codex --plugin assistant-dev
@@ -84,7 +81,7 @@ while [[ $# -gt 0 ]]; do
         --skill)    [[ $# -ge 2 ]] || { echo "Missing value for $1"; exit 1; }; SINGLE_SKILL="$2"; shift 2 ;;
         --plugin)   [[ $# -ge 2 ]] || { echo "Missing value for $1"; exit 1; }; PLUGIN_PROFILE="$2"; shift 2 ;;
         --adaptive-routing) ADAPTIVE_ROUTING=true; shift ;;
-        --no-hooks)   echo "WARNING: --no-hooks is deprecated; all Assistant Framework installs are hookless." >&2; shift ;;
+        --no-hooks) shift ;;
         --dry-run)    DRY_RUN=true; shift ;;
         -h|--help)  usage 0 ;;
         *)          echo "Unknown option: $1" >&2; usage 2 ;;
@@ -97,6 +94,22 @@ fail() { echo "Error: $1" >&2; exit 1; }
 info() { echo "  $1"; }
 ok()   { echo "  OK: $1"; }
 dry()  { echo "  [dry-run] $1"; }
+
+resolve_python3() {
+    local candidate
+
+    # On Windows, python3 can resolve to the non-executable WindowsApps alias
+    # even when the real Python launcher is available as `python`.
+    for candidate in python python3; do
+        if command -v "$candidate" >/dev/null 2>&1 \
+            && "$candidate" -c 'import sys; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1; then
+            command -v "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
 
 metadata_preserving_temp() {
     local source_file="$1"
@@ -209,6 +222,37 @@ migrate_adaptive_codex_guidance() {
     ' "$agents_file" > "$temp_file" && mv "$temp_file" "$agents_file" \
         || { rm -f "$temp_file"; fail "Failed to migrate known legacy guidance in $agents_file"; }
     ok "Migrated known legacy routing guidance in $agents_file"
+}
+
+ensure_codex_hooks_feature_flag() {
+    local config_file="$1"
+    local temp_file
+    mkdir -p "$(dirname "$config_file")"
+    [[ -f "$config_file" ]] || : > "$config_file"
+    temp_file="$(metadata_preserving_temp "$config_file")" || fail "Failed to prepare $config_file"
+    awk '
+        BEGIN { in_features = 0; seen_features = 0; seen_hooks = 0 }
+        /^\[features\][[:space:]]*$/ { if (in_features && !seen_hooks) print "hooks = true"; in_features = 1; seen_features = 1; print; next }
+        /^\[/ { if (in_features && !seen_hooks) print "hooks = true"; in_features = 0; print; next }
+        in_features && /^hooks[[:space:]]*=/ { print "hooks = true"; seen_hooks = 1; next }
+        { print }
+        END { if (in_features && !seen_hooks) print "hooks = true"; if (!seen_features) print "\n[features]\nhooks = true" }
+    ' "$config_file" > "$temp_file" && mv "$temp_file" "$config_file" || { rm -f "$temp_file"; fail "Failed to enable Codex hooks"; }
+}
+
+install_codex_workflow_hooks() {
+    local hooks_target="$1"
+    local settings_file="$2"
+    local source_dir="$FRAMEWORK_DIR/hooks/scripts"
+    local source_settings="$FRAMEWORK_DIR/hooks/codex-settings.json"
+    local python_bin=""
+    python_bin="$(resolve_python3)" || fail "Python 3 is required to merge Codex hooks"
+    mkdir -p "$hooks_target"
+    for hook in task-journal-resolver.sh workflow-phase-gates.sh workflow-enforcer.sh subagent-monitor.sh stop-review.sh codex-workflow-hooks.py; do
+        cp "$source_dir/$hook" "$hooks_target/$hook"
+        chmod +x "$hooks_target/$hook"
+    done
+    "$python_bin" "$FRAMEWORK_DIR/tools/install-codex-hooks.py" "$settings_file" "$source_settings" "$hooks_target"
 }
 
 # Canonical union of commands directly registered by released Assistant
@@ -743,11 +787,7 @@ register_codex_memory_graph_mcp() {
     local memory_dir="$3"
     local python_bin=""
 
-    if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1; then
-        python_bin="python3"
-    elif command -v python >/dev/null 2>&1 && python -c 'import sys; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1; then
-        python_bin="python"
-    fi
+    python_bin="$(resolve_python3 || true)"
 
     if [[ -z "$python_bin" ]]; then
         info "WARNING: Python 3 not found — cannot safely refresh Codex MCP TOML automatically."
@@ -1318,16 +1358,16 @@ fi
 # one released version has shipped with hook retirement. Until then, clean only
 # exact Assistant Framework registrations and leave unrelated hook support alone.
 if [[ "$AGENT" == "codex" ]]; then
-    LEGACY_HOOK_SETTINGS_FILE="$AGENT_HOME/hooks.json"
-else
-    LEGACY_HOOK_SETTINGS_FILE="$SETTINGS_FILE"
-fi
-
-if $DRY_RUN; then
-    dry "Remove retired Assistant Framework hook registrations from $LEGACY_HOOK_SETTINGS_FILE when present"
-    dry "Neutralize cached framework entrypoints only when legacy hook state exists"
-else
-    cleanup_legacy_framework_hooks "$LEGACY_HOOK_SETTINGS_FILE" "$HOOKS_TARGET" "$AGENT"
+    CODEX_HOOKS_FILE="$AGENT_HOME/hooks.json"
+    CODEX_CONFIG="$AGENT_HOME/config.toml"
+    if $DRY_RUN; then
+        dry "Install mandatory phase, native-agent, and stop-review hooks in $CODEX_HOOKS_FILE"
+        dry "Ensure hooks = true in $CODEX_CONFIG"
+    else
+        ensure_codex_hooks_feature_flag "$CODEX_CONFIG"
+        install_codex_workflow_hooks "$HOOKS_TARGET" "$CODEX_HOOKS_FILE"
+        ok "Mandatory Codex workflow hooks -> $HOOKS_TARGET/"
+    fi
 fi
 
 # ── Generate AGENTS.md for Codex (it reads AGENTS.md, not CLAUDE.md) ────────
@@ -1359,6 +1399,7 @@ Codex uses installed skills through native skill routing. When a skill matches, 
 - Delegation consent is required only before an actual subagent spawn. Do not ask during preparation merely because agents might be useful. Ask once immediately before the first spawn unless the user already authorized that scope. Continue safe non-spawn work while authorization is unresolved.
 - After authorization, use native Codex subagents by configured name. Do not infer that subagents are unavailable from the absence of a visible tool name; use direct fallback only after denial, policy restriction, or a real unavailable-agent failure.
 - Select model capability and reasoning effort to minimize the expected total cost of a verified outcome, accounting for difficulty, uncertainty, impact, reversibility, validation strength, and likely rework.
+- Before a native task starts work, set its title through the Codex title API as \`Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>\`. Update \`Real\` only from runtime evidence; never present a requested configuration as effective.
 - Verify changes with the relevant repository commands. Review the result against the approved scope and fix material findings before handoff; use independent review when the active skill or risk requires it.
 - Keep credentials, secrets, PII, and private endpoints out of code, logs, task state, and memory.
 <!-- $AGENTS_MD_MARKER_END -->"

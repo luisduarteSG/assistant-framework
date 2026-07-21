@@ -63,7 +63,7 @@ This sets the root default to `gpt-5.6-terra` with `medium` reasoning, keeps rol
 
 On Windows under Git Bash, the installer uses the native `robocopy.exe` mirror operation. Linux and macOS continue to use `rsync`. This avoids the incompatible Git Bash/cwRsync path translation while preserving the same remove-stale-files behavior.
 
-Claude Code, Codex, and Gemini CLI discover and route installed skills through their native skill systems. Assistant Framework does not install lifecycle scripts or replace provider-native permissions, subagents, or compaction.
+Claude Code, Codex, and Gemini CLI discover and route installed skills through their native skill systems. Codex installs a mandatory, minimal hook profile: every prompt displays the current phase, native subagent start/stop events provide workflow evidence, and standard/strict tasks cannot stop before agent evidence and review are complete. The hooks do not create agents or replace provider-native permissions.
 
 ```bash
 ./install.sh --agent claude
@@ -71,7 +71,7 @@ Claude Code, Codex, and Gemini CLI discover and route installed skills through t
 ./install.sh --agent gemini
 ```
 
-For one compatibility release, a normal install also retires older Assistant Framework lifecycle registrations safely. It removes only commands owned by this framework from the selected agent's existing settings, preserves unrelated custom configuration, and replaces detected stale framework entrypoints with silent exit-zero shims for already-running clients. Invalid JSON is warned about and left unchanged. Restart the agent after migrating an older install. The deprecated `--no-hooks` option remains a warning-only no-op during this transition.
+The Codex installer merges its managed hooks into `~/.codex/hooks.json` idempotently, preserving unrelated user hook commands. Existing `--no-hooks` command lines are accepted only as legacy input and cannot disable this profile.
 
 ## Skills
 
@@ -258,7 +258,7 @@ replacement for semantic review. Detailed usage is in `docs/evals/README.md`.
 ## Structure
 
 ```
-install.sh                         <- Top-level installer (skills + migration cleanup + memory)
+install.sh                         <- Top-level installer (skills + Codex workflow hooks + memory)
 version.txt                        <- Framework version
 graph-seed.jsonl                   <- Default knowledge graph seed data
 

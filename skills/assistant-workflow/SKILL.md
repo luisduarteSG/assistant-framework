@@ -60,9 +60,10 @@ in descriptive evidence fields.
 ## Visible Checkpoints
 
 Phase markers are required only for `controller_intensity=strict`, explicit
-project policy, or a user request. Light and standard work still follows every
-logical phase and gate, but reports progress with concise natural updates
-without exact marker ceremony.
+project policy, or a user request. The installed Codex workflow-hook profile is
+an explicit project policy: every prompt starts with `Fase: <fase> | Agentes:
+<estado> | Próximo gate: <gate>`. Light and standard work still follows every
+logical phase and gate without exact-marker ceremony unless otherwise required.
 
 When exact markers are required, use this instruction: `Use this exact format:`
 
@@ -125,7 +126,7 @@ Load `references/phases.md` for the current phase. Load `references/workflow-con
 | Review | All | Light gets a fresh self-review without worker/reviewer dispatch evidence; standard/strict use Spec Review then independent `assistant-review`; QA only when required. |
 | Document | All | Apply the state/manual/learning modes; metrics, reflexion, and memory are optional/non-blocking. |
 
-For subagent rules, load `references/subagent-dispatch.md` and resolve `subagent_policy_state`, `subagent_execution_mode`, and `subagent_authorization_scope` before spawning. Before each native dispatch, create and validate an `agent_routing_plan` with role, difficulty, capability tier, reasoning effort, selection factors, escalation trigger, requested configuration, effective configuration, and runtime fallback; never treat a requested override as effective until the runtime reports it. Light small low-risk localized work may select `not_required` plus `not_applicable` and does not ask for delegation. For standard/strict development work, Assistant Framework policy requires explicit user authorization before spawning subagents unless the current prompt already authorizes them. Ask once for the needed delegation scope and wait before continuing phases that require subagents. After authorization, use `delegated` mode and spawn the configured role agents. Use direct fallback only when authorization is denied, policy disallows spawning, or a real spawn attempt fails because subagents/custom agents are unavailable; do not infer unavailability merely because no visible tool is named `Task`, `delegate`, or `subagent`.
+For subagent rules, load `references/subagent-dispatch.md` and resolve `subagent_policy_state`, `subagent_execution_mode`, and `subagent_authorization_scope` before spawning. Before each native dispatch, create and validate an `agent_routing_plan` with role, difficulty, capability tier, reasoning effort, selection factors, escalation trigger, requested configuration, effective configuration, and runtime fallback; never treat a requested override as effective until the runtime reports it. For the current top-level Codex task, set the native title before work using `Req: <model>/<reasoning> | Real: <model>/<reasoning|pending-runtime> | <task>` and update `Real` only from runtime evidence. Record the same title metadata in every native subagent dispatch, because the current runtime does not expose child-task title mutation. The Codex workflow hooks record native `SubagentStart` and `SubagentStop` events; standard/strict delegated workflows require that lifecycle evidence before completion. Light small low-risk localized work may select `not_required` plus `not_applicable` and does not ask for delegation. For standard/strict development work, Assistant Framework policy requires explicit user authorization before spawning subagents unless the current prompt already authorizes them. Ask once for the needed delegation scope and wait before continuing phases that require subagents. After authorization, use `delegated` mode and spawn the configured role agents. Use direct fallback only when authorization is denied, policy disallows spawning, or a real spawn attempt fails because subagents/custom agents are unavailable; do not infer unavailability merely because no visible tool is named `Task`, `delegate`, or `subagent`.
 
 Load `references/harness-controller.md` only after `references/workflow-controller.md` or carried-forward phase state establishes `harness_capable=true`.
 Load `assistant-security` when touching auth, user input, secrets, persistence, network calls, shell commands, dependency/config changes, or external integrations.

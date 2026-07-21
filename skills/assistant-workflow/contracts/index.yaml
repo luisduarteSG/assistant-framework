@@ -39,13 +39,18 @@ load_sets:
     budget_words: 12000
   selected_handoff:
     selectors:
+      - id: workflow-agent-routing-plan
+        path: contracts/handoffs.yaml
+        section: agent_routing_plan
+        key: id
+        names: [agent_routing_plan]
       - id: workflow-selected-handoff
         path: contracts/handoffs.yaml
         section: handoffs
         key: name
         name_from: selected_handoff_name
         allowed_names: [orchestrator_to_code_mapper, orchestrator_to_explorer, orchestrator_to_architect_decompose, orchestrator_to_architect, orchestrator_to_code_writer, orchestrator_to_builder_tester, orchestrator_to_reviewer, orchestrator_to_qa_evaluator]
-    budget_words: 15000
+    budget_words: 17000
   completion:
     selectors:
       - id: workflow-completion-artifact

@@ -28,6 +28,15 @@ Provider examples are only examples, not requirements:
 
 If the runtime does not expose model overrides for subagents, keep the role separation and tool-access constraints; use the default model and include the tier as guidance in the dispatch prompt.
 
+## Codex adaptive route profiles
+
+For Codex dispatches, select the canonical route ID and native agent name from
+the Route policy in `references/subagent-dispatch.md` before invoking the
+runtime. That policy is the sole route-to-agent/profile mapping. Record its
+profile as `requested_configuration`, then update `effective_configuration`
+only from runtime evidence. Luna remains mapping-only; promotion requires the
+evidence and max-effort exception rules stated in that canonical policy.
+
 ## Installed agents
 
 When custom agents are installed, dispatch by name. The agent's own configuration handles everything; the runtime syntax differs:
