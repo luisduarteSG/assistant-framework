@@ -83,6 +83,10 @@ gates:
         check: "subagent_policy_state, subagent_execution_mode, and subagent_authorization_scope are initialized before any phase that may spawn subagents; development/code-work that needs workflow roles starts as authorization_required unless the current user prompt explicitly authorized subagents"
         on_fail: "Set subagent_policy_state=authorization_required and ask once for the needed delegation scope before continuing phases that require subagents. Set delegation_authorized only after explicit user approval or explicit user-requested subagents. Use direct_fallback only after authorization_denied, subagents_unavailable after a real spawn failure, or policy_disallowed."
 
+      - id: T_AGENT_ROUTING_PLAN
+        check: "Every role selected for possible native dispatch has an agent_routing_plan with role, difficulty, capability_tier, reasoning_effort, selection_factors, escalation_trigger, requested_configuration, effective_configuration, and runtime_fallback; effective_configuration is marked pending_runtime_confirmation before invocation and updated from runtime evidence afterward"
+        on_fail: "Create the public agent_routing_plan before dispatch. Do not call the native dispatch mechanism until requested_configuration, a pending effective_configuration, and runtime_fallback are recorded."
+
       - id: T10
         check: "candidate_scope_scan is populated from a quick read-only scan before finalizing Triage, with likely touched paths, symbols/search terms checked, adjacent surfaces, confidence, and unknowns"
         on_fail: "Search the locally available target files, likely modules, symbols, nearby tests, docs, contracts, config, generated mirrors, or runtime surfaces; record candidate_scope_scan before entering Discover or explicitly mark not applicable with reason for tiny prompt-only tasks."
@@ -614,3 +618,8 @@ invariants:
     check: "controller_intensity == standard with harness_capable=false and qa_evaluation_mode=not_required does not require Done Contract, Harness Recipe, Trace Ledger, Replay Packet, Artifact Reference Ledger, or QA evaluation"
     scope: all_phases
     on_fail: "Remove accidental strict/harness/QA requirements, or re-triage with explicit independent criteria before promoting controller_intensity to strict."
+
+  - id: INV_AGENT_ROUTING_PLAN
+    check: "Before every native dispatch, the selected handoff contains a valid agent_routing_plan and the dispatch log records the requested_configuration, effective_configuration actually reported by the runtime, and runtime_fallback when the requested configuration cannot be applied"
+    scope: all_phases
+    on_fail: "Do not dispatch or claim a configuration was used. Record the routing plan, invoke the runtime only after validation, and update effective_configuration from returned runtime evidence."

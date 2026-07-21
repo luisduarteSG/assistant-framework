@@ -4,6 +4,30 @@ Use specialized agents when the active tool policy and user authorization allow 
 
 For full role prompts, read `references/subagent-roles.md`.
 
+## Agent Routing Plan
+
+Before every native dispatch, create the public `agent_routing_plan` defined in
+`contracts/handoffs.yaml`. It is required even if the active runtime cannot
+honor model overrides. Record:
+
+| Field | Allowed values / requirement |
+|---|---|
+| `role` | Selected workflow role |
+| `difficulty` | `bounded`, `standard`, `complex`, or `critical` |
+| `capability_tier` | `fast`, `balanced`, or `frontier` |
+| `reasoning_effort` | `low`, `medium`, `high`, `xhigh`, or exceptional `max` |
+| `selection_factors` | Concrete scope, risk, uncertainty, verification, and tool-access reasons |
+| `escalation_trigger` | Observable condition that requires a stronger route or re-triage |
+| `requested_configuration` | What the orchestrator asked the runtime to use |
+| `effective_configuration` | What the runtime/tool result confirms it used; never assume it equals requested |
+| `runtime_fallback` | Default/direct/alternate route and evidence when requested configuration is unavailable |
+
+Use `max` only for critical risk, unresolved high-impact ambiguity, or repeated
+verified failure after lower adequate efforts. Selection means efficient verified
+outcomes, not a blanket cheapest-model rule. If the runtime exposes no override,
+request the configured role, record the default as effective, and keep the role
+and verification boundaries unchanged.
+
 ## Delegation Policy State
 
 Before spawning any subagent, resolve:
@@ -84,6 +108,11 @@ its compact validation plus fresh-review evidence instead.
 | **DOCUMENT** | — (Orchestrator direct) | All sizes | Documentation generation is orchestrator's synthesis work |
 
 **Rule:** If `subagent_execution_mode=delegated` and a phase's subagent column shows a dispatch, you MUST dispatch that role. If `subagent_execution_mode=direct_fallback`, you MUST NOT spawn subagents; instead record which role responsibility was handled directly and what equivalent evidence proves it.
+
+**Native dispatch rule:** Validate the selected handoff and its
+`agent_routing_plan` before invoking the runtime. After it returns, update
+`effective_configuration` and `runtime_fallback` from runtime evidence before
+the next dispatch or completion gate.
 
 ## Dispatch rules by task size
 

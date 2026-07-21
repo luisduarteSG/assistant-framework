@@ -53,6 +53,16 @@ Preview without making changes:
 ./install.sh --agent claude --dry-run
 ```
 
+To apply the adaptive Codex routing policy during a Codex install, use:
+
+```bash
+./install.sh --agent codex --adaptive-routing
+```
+
+This sets the root default to `gpt-5.6-terra` with `medium` reasoning, keeps role-specific baselines in the installed agent definitions, and migrates only the known legacy routing lines in an existing `~/.codex/AGENTS.md`. The installer creates one-time `.assistant-framework-adaptive-routing.bak` backups before the local configuration or guidance migration. Restart Codex or open a new task after installation.
+
+On Windows under Git Bash, the installer uses the native `robocopy.exe` mirror operation. Linux and macOS continue to use `rsync`. This avoids the incompatible Git Bash/cwRsync path translation while preserving the same remove-stale-files behavior.
+
 Claude Code, Codex, and Gemini CLI discover and route installed skills through their native skill systems. Assistant Framework does not install lifecycle scripts or replace provider-native permissions, subagents, or compaction.
 
 ```bash

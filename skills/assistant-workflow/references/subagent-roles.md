@@ -4,13 +4,21 @@ Reference for dispatching subagents through the active runtime's agent mechanism
 
 ## Model selection guidance
 
-Use **capability tiers**, not provider-specific model names, when deciding which model a role should use. Different runtimes name models differently, and some (for example Gemini CLI today) may not support custom per-role model files yet.
+Use **capability tiers**, not provider-specific model names, when deciding which model a role should use. Choose the tier and effort that efficiently produce the required verified outcome; different runtimes name models differently, and some (for example Gemini CLI today) may not support custom per-role model files yet.
 
 | Tier | Use for | Selection rule |
 |---|---|---|
-| **Fast / economical** | Shallow mapping, file inventory, locating entry points | Cheapest/fastest model that can follow structured output reliably |
+| **Fast / economical** | Shallow mapping, file inventory, locating entry points | Fastest tier that can reliably produce the required structured evidence |
 | **Balanced / standard** | Deep reading, build/test loops, noisy output summarization | Default strong coding model for day-to-day reasoning and tool use |
 | **Strongest / deep reasoning** | Architecture, implementation, high-confidence review | Best available coding/reasoning model; spend tokens here when mistakes are expensive |
+
+Map tiers into the public `agent_routing_plan`: `fast`, `balanced`, and
+`frontier`. Pair them with difficulty/effort deliberately: bounded/low for
+contained inventory work; standard/medium for ordinary implementation or
+verification; complex/high for coupled analysis; critical/xhigh for high-impact
+decisions. `max` is an exception, not a default, and must cite critical risk,
+unresolved high-impact ambiguity, or repeated verified failure in
+`selection_factors` and `escalation_trigger`.
 
 Provider examples are only examples, not requirements:
 

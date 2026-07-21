@@ -19,7 +19,7 @@ Move work to verified outcome through right-sized phases, gates, tests, review, 
 
 ## Success Criteria
 
-- Core phases run at smallest useful depth; Decompose and Design run only when needed.
+- Core phases run at the depth needed for an efficient, verified outcome; Decompose and Design run only when needed.
 - No phase is skipped; small work scales down and durable state is used only when its mode triggers.
 - Medium+ work has an approved plan before Build; small work has an inline plan and proceeds without ceremony unless risk requires approval.
 - `references/workflow-controller.md` is the canonical source for controller intensity, workflow state, manual verification, learning capture, harness/QA routing, and review-role separation.
@@ -46,7 +46,7 @@ Canonical files stay authoritative; validate applicable rules at enforcement poi
 
 - `entry`: select `task_description`, `task_type`, `scope_hint`, `target_files`, `constraints`, and `acceptance_criteria` from `contracts/input.yaml`; `references/triage-rubric.md` is the only declared entry reference.
 - `current_phase`: active `contracts/phase-gates.yaml` at transition.
-- `selected_handoff`: `contracts/handoffs.yaml` before dispatch and return validation.
+- `selected_handoff`: `contracts/handoffs.yaml` before dispatch and return validation. Before every native dispatch, also validate its public `agent_routing_plan` contract and record both requested and effective runtime configuration.
 - `completion`: `contracts/output.yaml` at completion before final exit.
 
 Selectors resolve by unique id plus canonical path, exact section, key, and explicit names. Runtime selectors resolve `name_from` only through their declared `allowed_names`.
@@ -95,7 +95,7 @@ These examples are conditional on the exact-marker triggers above.
 Start Triage with a concise progress update. When exact markers are required,
 use `--- PHASE: TRIAGE ---`.
 
-Load `references/triage-rubric.md`. Perform a quick read-only Candidate scope scan, then assess task type, risk tier, size, gates, agents, `controller_intensity`, subagent state, and `search_mode`. For ideas, create binary observable criteria before planning.
+Load `references/triage-rubric.md`. Perform a quick read-only Candidate scope scan, then assess task type, risk tier, size, gates, agents, `controller_intensity`, subagent state, `agent_routing_plan` defaults, and `search_mode`. For ideas, create binary observable criteria before planning.
 
 | Size | Phases |
 |---|---|
@@ -125,7 +125,7 @@ Load `references/phases.md` for the current phase. Load `references/workflow-con
 | Review | All | Light gets a fresh self-review without worker/reviewer dispatch evidence; standard/strict use Spec Review then independent `assistant-review`; QA only when required. |
 | Document | All | Apply the state/manual/learning modes; metrics, reflexion, and memory are optional/non-blocking. |
 
-For subagent rules, load `references/subagent-dispatch.md` and resolve `subagent_policy_state`, `subagent_execution_mode`, and `subagent_authorization_scope` before spawning. Light small low-risk localized work may select `not_required` plus `not_applicable` and does not ask for delegation. For standard/strict development work, Assistant Framework policy requires explicit user authorization before spawning subagents unless the current prompt already authorizes them. Ask once for the needed delegation scope and wait before continuing phases that require subagents. After authorization, use `delegated` mode and spawn the configured role agents. Use direct fallback only when authorization is denied, policy disallows spawning, or a real spawn attempt fails because subagents/custom agents are unavailable; do not infer unavailability merely because no visible tool is named `Task`, `delegate`, or `subagent`.
+For subagent rules, load `references/subagent-dispatch.md` and resolve `subagent_policy_state`, `subagent_execution_mode`, and `subagent_authorization_scope` before spawning. Before each native dispatch, create and validate an `agent_routing_plan` with role, difficulty, capability tier, reasoning effort, selection factors, escalation trigger, requested configuration, effective configuration, and runtime fallback; never treat a requested override as effective until the runtime reports it. Light small low-risk localized work may select `not_required` plus `not_applicable` and does not ask for delegation. For standard/strict development work, Assistant Framework policy requires explicit user authorization before spawning subagents unless the current prompt already authorizes them. Ask once for the needed delegation scope and wait before continuing phases that require subagents. After authorization, use `delegated` mode and spawn the configured role agents. Use direct fallback only when authorization is denied, policy disallows spawning, or a real spawn attempt fails because subagents/custom agents are unavailable; do not infer unavailability merely because no visible tool is named `Task`, `delegate`, or `subagent`.
 
 Load `references/harness-controller.md` only after `references/workflow-controller.md` or carried-forward phase state establishes `harness_capable=true`.
 Load `assistant-security` when touching auth, user input, secrets, persistence, network calls, shell commands, dependency/config changes, or external integrations.
@@ -138,6 +138,7 @@ Return:
 - Verification: commands, pass/fail, skipped checks with reasons.
 - Review result: spec, quality, QA, and security when applicable.
 - Residual risk: blockers, assumptions, policy constraints, or follow-up.
+- Agent routing: requested/effective configuration and runtime fallback for every native dispatch.
 - Next step: one practical recommendation.
 
 Do not use phrases like "should work", "probably fixed", or "looks good" unless immediately qualified with evidence or uncertainty.

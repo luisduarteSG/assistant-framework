@@ -40,6 +40,12 @@ Delegated mode (`subagent_execution_mode=delegated`):
 - Build and verification go through Builder/Tester.
 - Independent Review goes through Code Reviewer, or Reviewer compatibility only
   for existing/legacy handoffs.
+
+Before each delegated native dispatch, validate and attach the shared
+`agent_routing_plan` from `contracts/handoffs.yaml`. Record requested
+configuration before invocation and update effective configuration only from
+runtime evidence; when the runtime cannot honor an override, record its default
+or direct route in `runtime_fallback` rather than claiming the request applied.
 - QA Evaluator runs only when `qa_evaluation_mode=required`.
 
 For standard/strict work, Direct fallback mode

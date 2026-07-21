@@ -14,6 +14,7 @@ Record these fields in the task journal for medium+ tasks and in the inline plan
 - `Subagent policy state`: `not_required`, `authorization_required`, `delegation_authorized`, `authorization_denied`, `subagents_unavailable`, or `policy_disallowed`
 - `Subagent execution mode`: `delegated`, `direct_fallback`, or `not_applicable`
 - `Subagent authorization scope`: roles/phases/actions explicitly authorized by the user, or empty when none
+- `Agent routing plan`: one public routing record per possible native dispatch, with role, difficulty, capability tier, reasoning effort, selection factors, escalation trigger, requested configuration, effective runtime configuration, and runtime fallback
 - `Required gates`: the common gates plus every applicable task-category gate pack
 - `Search mode`: `none`, `lightweight`, or `candidate_search`
 - `Candidate scope scan`: likely touched paths or modules, symbols/search terms checked, adjacent tests/docs/contracts/config/mirrors to inspect, confidence, and unknowns
@@ -123,7 +124,7 @@ Apply to every code task:
 
 ## Required Agents
 
-Start from the size table in `references/subagent-dispatch.md`, then add risk-driven roles:
+Start from the size table in `references/subagent-dispatch.md`, then add risk-driven roles. Choose the route that gives the best verified outcome for the task's risk and evidence needs; do not optimize for the lowest nominal model cost alone.
 
 - `security` gate: load `assistant-security`
 - `refactor/migration/rewrite` gate: include Explorer for behavior tracing when parity is not fully test-covered

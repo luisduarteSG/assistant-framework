@@ -45,6 +45,25 @@ worker_status_protocol:
     - "findings is required for Reviewer returns."
     - "acceptance_findings, qa_scorecard, final_verdict, result, evidence, and score_entry are required for QAEvaluator returns; selected_domain_rubrics and domain_quality_scores are required only when scoped domain rubrics are selected."
 
+# Public native-dispatch contract. This applies to every handoff in `handoffs`
+# when the orchestrator invokes a runtime subagent. It is intentionally shared
+# instead of copied into each role packet so role packets retain their focused
+# context schemas.
+agent_routing_plan:
+  description: "Required before every native dispatch. Select for verified outcome efficiency, then record the runtime-confirmed configuration rather than assuming requested overrides were accepted."
+  required_fields: [role, difficulty, capability_tier, reasoning_effort, selection_factors, escalation_trigger, requested_configuration, effective_configuration, runtime_fallback]
+  enums:
+    difficulty: [bounded, standard, complex, critical]
+    capability_tier: [fast, balanced, frontier]
+    reasoning_effort: [low, medium, high, xhigh, max]
+  packet_rules:
+    - "Before native dispatch, attach one complete agent_routing_plan to the selected handoff and validate every required field."
+    - "requested_configuration records the role, model/tier, reasoning, and runtime options requested by the orchestrator."
+    - "Before invocation, effective_configuration is an explicit pending_runtime_confirmation record; after return it records only configuration acknowledged by the runtime/tool result, using explicit unavailable or default values when an override is not exposed."
+    - "runtime_fallback names the direct/default/alternate route and evidence when the requested configuration is unavailable, rejected, or materially changed."
+    - "max reasoning_effort is exceptional: use it only when critical risk, unresolved high-impact ambiguity, or repeated verified failure makes lower effort insufficient; record that trigger."
+    - "A missing or invalid plan blocks native dispatch. A direct_fallback still records why no native dispatch occurred."
+
 # ─────────────────────────────────────────────
 # Typed Artifact Reference Protocol
 # ─────────────────────────────────────────────
@@ -1718,6 +1737,7 @@ handoffs:
 # Validation behavior for all handoffs:
 #
 # 1. Before dispatching: verify all required context_fields are populated
+#    and validate the shared agent_routing_plan before any native dispatch.
 # 2. After return: verify all required return_fields are present, including the worker status packet
 # 3. If on_missing_field action is "re-dispatch": retry once with explicit request
 # 4. If second dispatch also misses required fields: log the gap and route to direct fallback, BLOCKED, or a degraded result with explicit evidence; do not fabricate required fields

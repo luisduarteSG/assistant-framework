@@ -47,6 +47,8 @@ Subagent policy state: [not_required | authorization_required | delegation_autho
 Subagent execution mode: [delegated | direct_fallback | not_applicable]
 Subagent authorization scope:
 - [roles/phases/actions covered by user authorization, or none]
+Agent routing plans:
+- [one per native dispatch: role | difficulty | capability_tier | reasoning_effort | selection_factors | escalation_trigger | requested_configuration | effective_configuration | runtime_fallback]
 Candidate scope scan:
 - Likely touched paths: [exact paths, directories, modules, or unknown]
 - Symbols or terms searched: [search terms, commands, or none with reason]
@@ -64,6 +66,7 @@ Plan approval: [yes/no + date]
 - Required roles: Code Writer, Builder/Tester, Code Reviewer; QA Evaluator when required; Code Mapper/Explorer/Architect by size/risk; Reviewer for legacy compatibility.
 - Execution mode: delegated | direct_fallback | not_applicable
 - Native dispatch evidence: delegated roles reference the agent id, task name, thread, or tool result exposed by the runtime and bind it to this journal's `Created:` identity.
+- Routing configuration evidence: each native dispatch records its `agent_routing_plan` before invocation and the runtime-confirmed `effective_configuration` afterward; do not copy requested settings as effective without runtime evidence.
 - Direct fallback reason: [authorization_denied | subagents_unavailable | policy_disallowed | N/A]
 - Evidence shorthand: delegated refs | role-equivalent direct evidence | N/A only when role not required.
 - Code Mapper dispatch/result/direct evidence: [delegated refs | direct evidence | N/A]

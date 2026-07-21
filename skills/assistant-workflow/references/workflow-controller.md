@@ -8,7 +8,7 @@ file centralizes decision boundaries that cut across phase details while
 
 - Keep `assistant-workflow` as the only public workflow skill entrypoint.
 - Decide the workflow control shape: intensity, harness routing, QA routing,
-  movement, and role separation.
+  movement, role separation, and per-dispatch routing configuration.
 - Organize decisions by boundary, not by phase name: routing/defaults,
   movement, harness boundary, subagent/review/QA lanes, and validation.
 - Do not redefine phase execution steps, skill contracts, or task packet
@@ -50,6 +50,13 @@ file centralizes decision boundaries that cut across phase details while
   explicit harness/QA criteria, or explicit strict control.
 - Do not infer `strict`, `harness_capable=true`, or required QA from
   size=medium+ or delegation alone.
+- Select agents for efficient verified outcomes: use the lowest capability and
+  reasoning level that can credibly satisfy the required evidence, and escalate
+  when risk, ambiguity, or failed verification proves it is insufficient.
+- Before every native dispatch, require the public `agent_routing_plan` from
+  `contracts/handoffs.yaml`. Keep requested configuration separate from
+  runtime-confirmed effective configuration; a rejected or unavailable override
+  must be visible in `runtime_fallback`.
 - Treat `harness_capable` as false unless the task is long-running,
   trace/replay-ready, high-risk harness work, domain-scored,
   UI/visual/product/UX/docs/DX-facing, explicitly requested as harness/QA work,

@@ -1,4 +1,6 @@
 name = "code-writer"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 description = "Focused code implementer that writes production code following a plan. Does not run builds or tests — that's the builder-tester's job. Does not review — that's code-reviewer's job; reviewer remains compatibility routing. Use during build phase."
 sandbox_mode = "workspace-write"
 

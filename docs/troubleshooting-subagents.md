@@ -35,6 +35,16 @@ ls ~/.codex/agents/*.toml
 grep '^name' ~/.codex/agents/*.toml
 ```
 
+To migrate an older Codex installation to adaptive role routing, run
+`./install.sh --agent codex --adaptive-routing`. It sets the root default to
+Terra/medium, installs the role baselines, and preserves a one-time backup of
+the previous `config.toml` and `AGENTS.md` beside each file.
+
+On Windows, directory synchronization is performed by `robocopy.exe`; `rsync`
+is used on Linux and macOS. If an older Chocolatey cwRsync install hangs or
+misreads `/c/...` paths, reinstall with the current installer rather than
+rewriting paths manually.
+
 For an older installation, rerun the normal installer and restart the agent.
 During the one-release migration window, the installer removes only retired
 Assistant Framework lifecycle registrations, preserves unrelated custom

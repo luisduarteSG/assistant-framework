@@ -1,4 +1,6 @@
 name = "qa-evaluator"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 description = "Read-only QA evaluator for acceptance criteria, Done Contract, verification evidence, domain quality, score progression, and final acceptance verdict. Runs after build/test and code-review evidence; does not replace code-reviewer."
 sandbox_mode = "read-only"
 

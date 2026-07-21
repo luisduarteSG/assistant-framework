@@ -1,4 +1,6 @@
 name = "reviewer"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 description = "Compatibility code review route. Prefer code-reviewer for new code/security/architecture reviews; this role remains usable for existing reviewer handoffs."
 sandbox_mode = "read-only"
 

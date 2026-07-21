@@ -32,6 +32,8 @@ Every handoff must separate **pinned context** from **compressible context** so 
 - Repetitive logs, long tool outputs, exploratory searches, and intermediate reasoning.
 - Superseded hypotheses, rejected options, and stale plan variants.
 - Subagent chatter after preserving final status, evidence, files, and blockers.
+- Repetitive routing deliberation after preserving each native dispatch's role,
+  requested configuration, effective configuration, and runtime fallback.
 
 ### Pruned context — do not carry forward
 
@@ -71,6 +73,9 @@ A continuation packet must include these fields:
 - Commands run:
 - Results:
 - Blockers:
+
+## Agent Routing
+- Native dispatches: [role -> requested configuration -> effective configuration -> runtime fallback]
 
 ## Context Hygiene
 - Summarized / compressed:

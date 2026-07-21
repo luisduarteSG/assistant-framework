@@ -28,6 +28,7 @@ AGENT=""
 DRY_RUN=false
 SINGLE_SKILL=""
 PLUGIN_PROFILE=""
+ADAPTIVE_ROUTING=false
 FRAMEWORK_DIR=""
 toml_files=()
 
@@ -46,12 +47,14 @@ Options:
   --agent NAME       Target agent: claude, codex, gemini (required)
   --skill NAME       Install only one skill (default: all)
   --plugin NAME      Install a planned plugin profile such as assistant-core, assistant-research, or assistant-dev
+  --adaptive-routing Apply the Codex adaptive model and reasoning policy to existing local guidance and config
   --no-hooks         Deprecated compatibility no-op; all installs are hookless
   --dry-run          Show what would be done without doing it
   -h, --help         Show this help
 
-Note: skill installation uses rsync --delete, which removes any files you
-added manually to installed skill directories. Back up customizations first.
+Note: skill installation mirrors directories with robocopy on Windows and
+rsync elsewhere. Files added manually to installed skill directories are
+removed during the mirror. Back up customizations first.
 
 Skills installed:
   Auto-discovered from skills/assistant-*/SKILL.md.
@@ -70,6 +73,7 @@ Examples:
   $(basename "$0") --agent codex --plugin assistant-core
   $(basename "$0") --agent codex --plugin assistant-research
   $(basename "$0") --agent codex --plugin assistant-dev
+  $(basename "$0") --agent codex --adaptive-routing
 EOF
     exit "${1:-0}"
 }
@@ -79,6 +83,7 @@ while [[ $# -gt 0 ]]; do
         --agent)    [[ $# -ge 2 ]] || { echo "Missing value for $1"; exit 1; }; AGENT="$2"; shift 2 ;;
         --skill)    [[ $# -ge 2 ]] || { echo "Missing value for $1"; exit 1; }; SINGLE_SKILL="$2"; shift 2 ;;
         --plugin)   [[ $# -ge 2 ]] || { echo "Missing value for $1"; exit 1; }; PLUGIN_PROFILE="$2"; shift 2 ;;
+        --adaptive-routing) ADAPTIVE_ROUTING=true; shift ;;
         --no-hooks)   echo "WARNING: --no-hooks is deprecated; all Assistant Framework installs are hookless." >&2; shift ;;
         --dry-run)    DRY_RUN=true; shift ;;
         -h|--help)  usage 0 ;;
@@ -103,6 +108,107 @@ metadata_preserving_temp() {
         return 1
     fi
     printf '%s\n' "$temp_file"
+}
+
+is_windows_msys() {
+    [[ "$(uname -o 2>/dev/null || true)" == "Msys" ]]
+}
+
+sync_directory() {
+    local source_path="$1"
+    local destination_path="$2"
+    shift 2
+    local exclusions=("$@")
+
+    if is_windows_msys; then
+        local source_windows destination_windows exclusion
+        local robocopy_args=(/MIR /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XF .DS_Store)
+        source_windows="$(cygpath -w "${source_path%/}")" || return 1
+        destination_windows="$(cygpath -w "${destination_path%/}")" || return 1
+        for exclusion in "${exclusions[@]}"; do
+            [[ "$exclusion" == ".DS_Store" ]] && continue
+            robocopy_args+=(/XD "$exclusion")
+        done
+
+        # Disable Git Bash argument conversion because paths are already native
+        # Windows paths. Robocopy exit codes 0-7 are successful outcomes.
+        local robocopy_result=0
+        MSYS2_ARG_CONV_EXCL='*' robocopy.exe \
+            "$source_windows" "$destination_windows" "${robocopy_args[@]}" \
+            || robocopy_result=$?
+        (( robocopy_result < 8 )) || return "$robocopy_result"
+    else
+        local rsync_args=(-a --delete-after)
+        local exclusion
+        for exclusion in "${exclusions[@]}"; do
+            rsync_args+=(--exclude="$exclusion")
+        done
+        rsync "${rsync_args[@]}" "$source_path" "$destination_path"
+    fi
+}
+
+backup_once() {
+    local source_file="$1"
+    local backup_file="${source_file}.assistant-framework-adaptive-routing.bak"
+
+    [[ -f "$source_file" && ! -e "$backup_file" ]] && cp -p "$source_file" "$backup_file"
+}
+
+apply_adaptive_codex_config() {
+    local config_file="$1"
+    local temp_file
+
+    if $DRY_RUN; then
+        dry "Set Codex default model to gpt-5.6-terra and reasoning to medium in $config_file (with one-time backup)"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$config_file")"
+    [[ -f "$config_file" ]] || : > "$config_file"
+    backup_once "$config_file"
+    temp_file="$(metadata_preserving_temp "$config_file")" \
+        || fail "Failed to create a metadata-preserving temporary file beside $config_file"
+    awk '
+        BEGIN { model_seen = 0; reasoning_seen = 0 }
+        /^model[[:space:]]*=/ { print "model = \"gpt-5.6-terra\""; model_seen = 1; next }
+        /^model_reasoning_effort[[:space:]]*=/ { print "model_reasoning_effort = \"medium\""; reasoning_seen = 1; next }
+        { print }
+        END {
+            if (!model_seen) print "model = \"gpt-5.6-terra\""
+            if (!reasoning_seen) print "model_reasoning_effort = \"medium\""
+        }
+    ' "$config_file" > "$temp_file" && mv "$temp_file" "$config_file" \
+        || { rm -f "$temp_file"; fail "Failed to apply adaptive routing defaults to $config_file"; }
+    ok "Applied Codex default model gpt-5.6-terra and reasoning medium in $config_file"
+}
+
+migrate_adaptive_codex_guidance() {
+    local agents_file="$1"
+    local temp_file
+
+    if $DRY_RUN; then
+        dry "Migrate known legacy Codex routing guidance in $agents_file (with one-time backup)"
+        return 0
+    fi
+    [[ -f "$agents_file" ]] || return 0
+
+    backup_once "$agents_file"
+    temp_file="$(metadata_preserving_temp "$agents_file")" \
+        || fail "Failed to create a metadata-preserving temporary file beside $agents_file"
+    awk '
+        $0 == "Complete tasks correctly with the lowest reasonable cost, latency, and context usage." {
+            print "Complete tasks with the most efficient combination of model capability, reasoning effort, latency, and context usage needed for a verified outcome."; next
+        }
+        $0 == "Use the cheapest agent likely to complete the task reliably." {
+            print "Use the agent and reasoning configuration with the lowest expected total cost of a verified correct outcome. Consider first-pass success, validation, rework, latency, and token use."; next
+        }
+        $0 == "Use the lowest sufficient reasoning effort:" {
+            print "Choose reasoning effort from difficulty, ambiguity, risk, reversibility, and verification strength:"; next
+        }
+        { print }
+    ' "$agents_file" > "$temp_file" && mv "$temp_file" "$agents_file" \
+        || { rm -f "$temp_file"; fail "Failed to migrate known legacy guidance in $agents_file"; }
+    ok "Migrated known legacy routing guidance in $agents_file"
 }
 
 # Canonical union of commands directly registered by released Assistant
@@ -289,7 +395,7 @@ cleanup_legacy_framework_hooks() {
                     mv "$temp_settings" "$settings_file"
                 fi
             fi
-        elif command -v python3 >/dev/null 2>&1; then
+        elif command -v python3 >/dev/null 2>&1 && python3 -c 'import sys' >/dev/null 2>&1; then
             python_result="$(python3 - "$settings_file" "$agent" "$hooks_target" "$framework_hooks_dir" "$known_names" <<'PY'
 import json
 import os
@@ -637,7 +743,7 @@ register_codex_memory_graph_mcp() {
     local memory_dir="$3"
     local python_bin=""
 
-    if command -v python3 >/dev/null 2>&1; then
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1; then
         python_bin="python3"
     elif command -v python >/dev/null 2>&1 && python -c 'import sys; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1; then
         python_bin="python"
@@ -784,7 +890,11 @@ while IFS= read -r skill_md; do
     skill_name="$(basename "$skill_dir")"
     SKILLS+=("$skill_name")
 done < <(find "$SKILLS_SOURCE" -maxdepth 2 -path "$SKILLS_SOURCE/assistant-*/SKILL.md" -type f | sort)
-command -v rsync >/dev/null 2>&1 || fail "rsync is required but not installed. Install with: apt install rsync / dnf install rsync / brew install rsync"
+if is_windows_msys; then
+    command -v robocopy.exe >/dev/null 2>&1 || fail "robocopy.exe is required for Windows directory synchronization."
+else
+    command -v rsync >/dev/null 2>&1 || fail "rsync is required but not installed. Install with: apt install rsync / dnf install rsync / brew install rsync"
+fi
 
 # Determine target base
 if [[ "$AGENT" == "codex" ]]; then
@@ -842,13 +952,11 @@ for skill in "${SKILLS[@]}"; do
     fi
 
     if $DRY_RUN; then
-        dry "rsync $source_dir/ -> $target_dir/"
+        dry "sync $source_dir/ -> $target_dir/"
         dry "Substitute agent state path placeholders in copied $skill instruction/config files"
     else
         mkdir -p "$target_dir"
-        rsync -a --delete \
-            --exclude='.DS_Store' \
-            "$source_dir/" "$target_dir/"
+        sync_directory "$source_dir/" "$target_dir/" .DS_Store
 
         # Swap agent.conf to the correct preset if one exists before path substitution.
         if [[ "$AGENT" != "claude" ]]; then
@@ -948,16 +1056,11 @@ TOOLS_TARGET="$AGENT_HOME/tools"
 if [[ -d "$TOOLS_SOURCE" ]]; then
     echo ""
     if $DRY_RUN; then
-        dry "rsync $TOOLS_SOURCE/ -> $TOOLS_TARGET/"
+        dry "sync $TOOLS_SOURCE/ -> $TOOLS_TARGET/"
         cleanup_installed_tool_build_artifacts "$TOOLS_TARGET"
     else
         mkdir -p "$TOOLS_TARGET"
-        rsync -a --delete \
-            --exclude='.DS_Store' \
-            --exclude='.publish' \
-            --exclude='bin' \
-            --exclude='obj' \
-            "$TOOLS_SOURCE/" "$TOOLS_TARGET/"
+        sync_directory "$TOOLS_SOURCE/" "$TOOLS_TARGET/" .DS_Store .publish bin obj
         cleanup_installed_tool_build_artifacts "$TOOLS_TARGET"
 
         # Make scripts executable
@@ -977,12 +1080,10 @@ EVAL_DOCS_TARGET="$AGENT_HOME/docs/evals"
 if [[ -d "$EVAL_DOCS_SOURCE" ]]; then
     echo ""
     if $DRY_RUN; then
-        dry "rsync $EVAL_DOCS_SOURCE/ -> $EVAL_DOCS_TARGET/"
+        dry "sync $EVAL_DOCS_SOURCE/ -> $EVAL_DOCS_TARGET/"
     else
         mkdir -p "$EVAL_DOCS_TARGET"
-        rsync -a --delete \
-            --exclude='.DS_Store' \
-            "$EVAL_DOCS_SOURCE/" "$EVAL_DOCS_TARGET/"
+        sync_directory "$EVAL_DOCS_SOURCE/" "$EVAL_DOCS_TARGET/" .DS_Store
 
         ok "Eval docs -> $EVAL_DOCS_TARGET/"
     fi
@@ -1070,6 +1171,9 @@ if [[ -f "$TOOLS_TARGET/memory-graph/run-memory-graph.sh" ]] || { $DRY_RUN && [[
     elif [[ "$AGENT" == "codex" ]]; then
         # Codex: register in ~/.codex/config.toml using [mcp_servers.name] TOML syntax
         CODEX_CONFIG="$AGENT_HOME/config.toml"
+        if $ADAPTIVE_ROUTING; then
+            apply_adaptive_codex_config "$CODEX_CONFIG"
+        fi
         if $DRY_RUN; then
             dry "Refresh memory-graph MCP server in $CODEX_CONFIG"
         else
@@ -1236,6 +1340,10 @@ if [[ "$AGENT" == "codex" ]]; then
     AGENTS_MD="$AGENT_HOME/AGENTS.md"
     echo ""
 
+    if $ADAPTIVE_ROUTING; then
+        migrate_adaptive_codex_guidance "$AGENTS_MD"
+    fi
+
     # Keep the installer-owned standing guidance small. Installed SKILL.md files
     # are the native source of routing metadata and detailed workflow policy.
     AGENTS_MD_CONTENT="<!-- $AGENTS_MD_MARKER_START -->
@@ -1250,6 +1358,7 @@ Codex uses installed skills through native skill routing. When a skill matches, 
 - The orchestrator owns framework state files such as \`.codex/task.md\`, \`.codex/context-map.md\`, \`.codex/session.md\`, and \`.codex/working-buffer.md\`. Preserve user-authored project files and existing dirty work.
 - Delegation consent is required only before an actual subagent spawn. Do not ask during preparation merely because agents might be useful. Ask once immediately before the first spawn unless the user already authorized that scope. Continue safe non-spawn work while authorization is unresolved.
 - After authorization, use native Codex subagents by configured name. Do not infer that subagents are unavailable from the absence of a visible tool name; use direct fallback only after denial, policy restriction, or a real unavailable-agent failure.
+- Select model capability and reasoning effort to minimize the expected total cost of a verified outcome, accounting for difficulty, uncertainty, impact, reversibility, validation strength, and likely rework.
 - Verify changes with the relevant repository commands. Review the result against the approved scope and fix material findings before handoff; use independent review when the active skill or risk requires it.
 - Keep credentials, secrets, PII, and private endpoints out of code, logs, task state, and memory.
 <!-- $AGENTS_MD_MARKER_END -->"

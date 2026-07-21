@@ -1,4 +1,6 @@
 name = "builder-tester"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 description = "Builds the project, writes tests, runs tests, and returns concise results. Absorbs noisy build/test output so other agents' context stays clean. Use after code-writer on every task."
 sandbox_mode = "workspace-write"
 

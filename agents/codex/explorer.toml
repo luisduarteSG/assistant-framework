@@ -1,4 +1,6 @@
 name = "explorer"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
 description = "Deep codebase analyst for tracing execution paths, understanding design decisions, analyzing coupling and hidden dependencies. Use during discovery phase on large/mega tasks when you need to understand WHY code works the way it does, not just WHERE things are."
 sandbox_mode = "read-only"
 

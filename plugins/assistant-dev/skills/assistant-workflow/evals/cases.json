@@ -838,6 +838,54 @@
           "phases.md owns full Build Review QA Document procedures"
         ]
       }
+    },
+    {
+      "id": "agent-routing-plan-luna-bounded-low",
+      "title": "Luna bounded mapping uses fast low-effort routing",
+      "category": "agent_routing_plan",
+      "purpose": "Checks that bounded read-only inventory work selects a fast tier with low reasoning while recording requested and effective runtime configuration.",
+      "prompt": "Before dispatching Luna to list test files for one named module, prepare the native routing record.",
+      "setup_context": ["The task is bounded, read-only, and has a clear file target.", "The runtime supports the Luna role but may not expose model overrides."],
+      "expected_behavior": ["Creates agent_routing_plan before the native dispatch.", "Records role=Luna, difficulty=bounded, capability_tier=fast, and reasoning_effort=low.", "Records selection factors, escalation trigger, requested_configuration, effective_configuration, and runtime_fallback.", "Does not claim an unavailable requested override was effective."],
+      "pass_criteria": ["The routing record contains all public contract fields.", "The response distinguishes requested_configuration from effective_configuration."],
+      "fail_signals": ["Dispatches before recording agent_routing_plan.", "Uses requested configuration as effective configuration without runtime evidence."],
+      "machine_expectations": {"required_substrings": ["agent_routing_plan", "Luna", "bounded", "fast", "low", "requested_configuration", "effective_configuration", "runtime_fallback"], "forbidden_substrings": ["requested configuration is automatically effective", "dispatch first"]}
+    },
+    {
+      "id": "agent-routing-plan-terra-standard-medium",
+      "title": "Terra standard implementation uses balanced medium-effort routing",
+      "category": "agent_routing_plan",
+      "purpose": "Checks that ordinary implementation work selects balanced capability and medium reasoning for verified outcomes.",
+      "prompt": "Prepare the native routing record before dispatching Terra to implement one approved standard slice.",
+      "setup_context": ["The slice is approved, ordinary, and has a targeted verification command.", "No critical risk or repeated failure is present."],
+      "expected_behavior": ["Records role=Terra, difficulty=standard, capability_tier=balanced, and reasoning_effort=medium.", "Uses verification needs and approved scope as selection factors.", "Names an escalation trigger if validation exposes coupled or high-risk behavior."],
+      "pass_criteria": ["The plan is recorded before native dispatch with requested and effective configuration.", "The route is justified by verified outcome efficiency rather than a cheapest-model rule."],
+      "fail_signals": ["Selects frontier or max by default.", "Omits an escalation trigger."],
+      "machine_expectations": {"required_substrings": ["Terra", "standard", "balanced", "medium", "selection_factors", "escalation_trigger", "effective_configuration"], "forbidden_substrings": ["cheapest model wins", "max by default"]}
+    },
+    {
+      "id": "agent-routing-plan-terra-complex-high",
+      "title": "Terra complex analysis uses balanced high-effort routing",
+      "category": "agent_routing_plan",
+      "purpose": "Checks that coupled but non-critical analysis can use high reasoning without escalating tier unnecessarily.",
+      "prompt": "Before dispatching Terra to trace a complex cross-module regression with a known bounded scope, create the routing record.",
+      "setup_context": ["The regression spans coupled modules but has no critical security or irreversible data impact.", "The route must state when escalation is needed."],
+      "expected_behavior": ["Records role=Terra, difficulty=complex, capability_tier=balanced, and reasoning_effort=high.", "Sets an escalation trigger for unresolved high-impact ambiguity, failed verification, or critical-risk evidence.", "Records requested and runtime-confirmed effective configuration."],
+      "pass_criteria": ["The plan preserves balanced/high rather than treating complexity alone as frontier/max.", "All public routing fields are present before dispatch."],
+      "fail_signals": ["Uses max for ordinary complex work.", "Treats a requested override as confirmed."],
+      "machine_expectations": {"required_substrings": ["Terra", "complex", "balanced", "high", "requested_configuration", "effective_configuration", "escalation_trigger"], "forbidden_substrings": ["max for ordinary complex work", "requested equals effective"]}
+    },
+    {
+      "id": "agent-routing-plan-sol-critical-xhigh-max-exception",
+      "title": "Sol critical routing uses xhigh and restricts max to an exception",
+      "category": "agent_routing_plan",
+      "purpose": "Checks that critical work routes to frontier/xhigh by default and records strict evidence before max reasoning is used.",
+      "prompt": "Before dispatching Sol for a critical authorization design decision, create the routing record. Explain when max effort could be used.",
+      "setup_context": ["The decision has critical security impact and unresolved cross-system constraints.", "No repeated verified lower-effort failure has occurred yet."],
+      "expected_behavior": ["Records role=Sol, difficulty=critical, capability_tier=frontier, and reasoning_effort=xhigh.", "States that max is exceptional and needs critical risk plus unresolved high-impact ambiguity or repeated verified failure.", "Records requested configuration, runtime-confirmed effective configuration, and runtime fallback before dispatch."],
+      "pass_criteria": ["The default critical route is Sol/frontier/xhigh.", "max is not selected without an explicit exception trigger."],
+      "fail_signals": ["Uses max merely because the task is important.", "Omits runtime fallback when the requested configuration cannot be applied."],
+      "machine_expectations": {"required_substrings": ["Sol", "critical", "frontier", "xhigh", "max", "exception", "requested_configuration", "effective_configuration", "runtime_fallback"], "forbidden_substrings": ["max by default", "max because important"]}
     }
   ]
 }

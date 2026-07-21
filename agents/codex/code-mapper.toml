@@ -1,4 +1,6 @@
 name = "code-mapper"
+model = "gpt-5.6-luna"
+model_reasoning_effort = "medium"
 description = "Lightweight codebase cartographer that maps project structure, entry points, key interfaces, and file locations. Use on medium+ tasks as the first agent — its compact output feeds into Code Writer and other agents so they don't waste context exploring."
 sandbox_mode = "read-only"
 
