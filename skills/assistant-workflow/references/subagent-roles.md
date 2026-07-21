@@ -16,9 +16,11 @@ Map tiers into the public `agent_routing_plan`: `fast`, `balanced`, and
 `frontier`. Pair them with difficulty/effort deliberately: bounded/low for
 contained inventory work; standard/medium for ordinary implementation or
 verification; complex/high for coupled analysis; critical/xhigh for high-impact
-decisions. `max` is an exception, not a default, and must cite critical risk,
-unresolved high-impact ambiguity, or repeated verified failure in
-`selection_factors` and `escalation_trigger`.
+decisions. `max` is an exception, not a default. It requires critical risk
+paired with unresolved high-impact ambiguity or repeated verified failure after
+lower adequate efforts; cite that compound trigger in `selection_factors` and
+`escalation_trigger`. Critical risk alone, ambiguity alone, or failure alone
+does not permit `max`.
 
 Provider examples are only examples, not requirements:
 

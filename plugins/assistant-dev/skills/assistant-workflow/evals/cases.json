@@ -870,10 +870,10 @@
       "purpose": "Checks that coupled but non-critical analysis can use high reasoning without escalating tier unnecessarily.",
       "prompt": "Before dispatching Terra to trace a complex cross-module regression with a known bounded scope, create the routing record.",
       "setup_context": ["The regression spans coupled modules but has no critical security or irreversible data impact.", "The route must state when escalation is needed."],
-      "expected_behavior": ["Records role=Terra, difficulty=complex, capability_tier=balanced, and reasoning_effort=high.", "Sets an escalation trigger for unresolved high-impact ambiguity, failed verification, or critical-risk evidence.", "Records requested and runtime-confirmed effective configuration."],
+      "expected_behavior": ["Records role=Terra, difficulty=complex, capability_tier=balanced, and reasoning_effort=high.", "Sets an escalation trigger for unresolved high-impact ambiguity, failed verification, or critical-risk evidence.", "Before dispatch, records requested configuration and effective_configuration status=pending_runtime_confirmation."],
       "pass_criteria": ["The plan preserves balanced/high rather than treating complexity alone as frontier/max.", "All public routing fields are present before dispatch."],
       "fail_signals": ["Uses max for ordinary complex work.", "Treats a requested override as confirmed."],
-      "machine_expectations": {"required_substrings": ["Terra", "complex", "balanced", "high", "requested_configuration", "effective_configuration", "escalation_trigger"], "forbidden_substrings": ["max for ordinary complex work", "requested equals effective"]}
+      "machine_expectations": {"required_substrings": ["Terra", "complex", "balanced", "high", "requested_configuration", "effective_configuration", "status: pending_runtime_confirmation", "escalation_trigger"], "forbidden_substrings": ["select max reasoning for this ordinary complex task", "effective_configuration status: confirmed before runtime evidence"]}
     },
     {
       "id": "agent-routing-plan-sol-critical-xhigh-max-exception",
@@ -882,10 +882,70 @@
       "purpose": "Checks that critical work routes to frontier/xhigh by default and records strict evidence before max reasoning is used.",
       "prompt": "Before dispatching Sol for a critical authorization design decision, create the routing record. Explain when max effort could be used.",
       "setup_context": ["The decision has critical security impact and unresolved cross-system constraints.", "No repeated verified lower-effort failure has occurred yet."],
-      "expected_behavior": ["Records role=Sol, difficulty=critical, capability_tier=frontier, and reasoning_effort=xhigh.", "States that max is exceptional and needs critical risk plus unresolved high-impact ambiguity or repeated verified failure.", "Records requested configuration, runtime-confirmed effective configuration, and runtime fallback before dispatch."],
+      "expected_behavior": ["Records role=Sol, difficulty=critical, capability_tier=frontier, and reasoning_effort=xhigh.", "States that max is exceptional and needs critical risk plus unresolved high-impact ambiguity or repeated verified failure.", "Before dispatch, records requested configuration, effective_configuration status=pending_runtime_confirmation, and runtime fallback."],
       "pass_criteria": ["The default critical route is Sol/frontier/xhigh.", "max is not selected without an explicit exception trigger."],
       "fail_signals": ["Uses max merely because the task is important.", "Omits runtime fallback when the requested configuration cannot be applied."],
-      "machine_expectations": {"required_substrings": ["Sol", "critical", "frontier", "xhigh", "max", "exception", "requested_configuration", "effective_configuration", "runtime_fallback"], "forbidden_substrings": ["max by default", "max because important"]}
+      "machine_expectations": {"required_substrings": ["Sol", "critical", "frontier", "xhigh", "max", "exception", "requested_configuration", "effective_configuration", "status: pending_runtime_confirmation", "runtime_fallback"], "forbidden_substrings": ["select max reasoning solely because the task is important", "effective_configuration status: confirmed before runtime evidence"]}
+    },
+    {
+      "id": "adaptive-routing-code-mapper-fast-profile",
+      "title": "Bounded mapping uses the Luna fast profile",
+      "category": "adaptive_routing",
+      "purpose": "Requires the named bounded mapping route and its requested profile.",
+      "prompt": "Prepare the routing plan to map one named module with no writes and a clear file boundary.",
+      "setup_context": ["The task is bounded and read-only.", "No coupling, security, migration, conflict, or verified failure evidence exists."],
+      "expected_behavior": ["Selects route_id=map_fast and agent_name=code-mapper-fast.", "Requests gpt-5.6-luna with low reasoning.", "Keeps Luna mapping-only and names evidence-based promotion triggers."],
+      "pass_criteria": ["The pre-dispatch plan selects map_fast and code-mapper-fast with the Luna/low requested profile.", "The response preserves mapping-only scope and identifies an evidence-based promotion trigger."],
+      "fail_signals": ["Selects a non-mapping route without qualifying promotion evidence.", "Claims the requested profile is effective without runtime evidence."],
+      "machine_expectations": {"required_substrings": ["route_id: map_fast", "agent_name: code-mapper-fast", "model: gpt-5.6-luna", "reasoning_effort: low", "mapping-only"], "forbidden_substrings": ["I select route_id: implement_balanced for this bounded mapping", "I select frontier solely because this task is bounded"]}
+    },
+    {
+      "id": "adaptive-routing-code-writer-balanced-profile",
+      "title": "Standard implementation uses the Terra balanced profile",
+      "category": "adaptive_routing",
+      "purpose": "Requires the named standard implementation route and its requested profile.",
+      "prompt": "Prepare the routing plan for an approved ordinary implementation slice with targeted validation.",
+      "setup_context": ["The slice has no critical impact, unresolved high-impact ambiguity, or repeated verified failure."],
+      "expected_behavior": ["Selects route_id=implement_balanced and agent_name=code-writer.", "Requests gpt-5.6-terra with medium reasoning."],
+      "pass_criteria": ["The pre-dispatch plan selects implement_balanced and code-writer with the Terra/medium requested profile.", "The response keeps the ordinary slice on the balanced route."],
+      "fail_signals": ["Selects a frontier route without high-impact evidence.", "Selects max reasoning for the ordinary slice."],
+      "machine_expectations": {"required_substrings": ["route_id: implement_balanced", "agent_name: code-writer", "model: gpt-5.6-terra", "reasoning_effort: medium"], "forbidden_substrings": ["I select route_id: implement_frontier for this ordinary slice", "I select max reasoning for this ordinary slice"]}
+    },
+    {
+      "id": "adaptive-routing-explorer-frontier-profile",
+      "title": "Critical investigation uses the Sol frontier profile",
+      "category": "adaptive_routing",
+      "purpose": "Requires the named critical investigation route and its requested profile.",
+      "prompt": "Prepare the routing plan for a critical investigation with security impact and conflicting evidence.",
+      "setup_context": ["The investigation needs deep read-only tracing before any design or implementation."],
+      "expected_behavior": ["Selects route_id=discover_frontier and agent_name=explorer-frontier.", "Requests gpt-5.6-sol with high reasoning."],
+      "pass_criteria": ["The pre-dispatch plan selects discover_frontier and explorer-frontier with the Sol/high requested profile.", "The response ties frontier selection to the supplied security impact and conflicting evidence."],
+      "fail_signals": ["Routes the investigation to a mapping-only agent.", "Claims the requested profile is effective without runtime evidence."],
+      "machine_expectations": {"required_substrings": ["route_id: discover_frontier", "agent_name: explorer-frontier", "model: gpt-5.6-sol", "reasoning_effort: high"], "forbidden_substrings": ["I select route_id: map_fast for this critical investigation", "I select code-mapper-fast for this critical investigation"]}
+    },
+    {
+      "id": "adaptive-routing-runtime-override-unavailable",
+      "title": "Unavailable overrides remain requested rather than effective",
+      "category": "adaptive_routing",
+      "purpose": "Requires a truthful fallback record when the runtime cannot accept the requested model override.",
+      "prompt": "The runtime did not expose a model override for the selected standard implementation route. Complete the routing record after dispatch.",
+      "setup_context": ["No runtime result confirms a requested model or reasoning override."],
+      "expected_behavior": ["Uses runtime_fallback strategy=static_profile.", "Sets effective_configuration status=unavailable.", "Does not claim the requested model configuration was effective."],
+      "pass_criteria": ["The completed record uses static_profile fallback and marks effective_configuration unavailable with an evidence source.", "The response preserves requested configuration as intent rather than effective runtime state."],
+      "fail_signals": ["Marks an unexposed override as confirmed.", "Omits fallback evidence for the unavailable override."],
+      "machine_expectations": {"required_substrings": ["runtime_fallback", "strategy: static_profile", "effective_configuration", "status: unavailable", "evidence_source"], "forbidden_substrings": ["I mark effective_configuration confirmed without runtime evidence", "I treat the unexposed override as effective"]}
+    },
+    {
+      "id": "adaptive-routing-max-requires-compound-evidence",
+      "title": "Max reasoning requires critical risk and an additional verified trigger",
+      "category": "adaptive_routing",
+      "purpose": "Rejects max reasoning unless critical risk is paired with unresolved high-impact ambiguity or repeated verified failure.",
+      "prompt": "A standard implementation is difficult but has no critical risk, unresolved high-impact ambiguity, or repeated verified failure. Select the routing plan and explain whether max is allowed.",
+      "setup_context": ["The task has ordinary validation evidence and no security or migration impact."],
+      "expected_behavior": ["Rejects max reasoning.", "States that max requires critical risk plus unresolved high-impact ambiguity or repeated verified failure."],
+      "pass_criteria": ["The routing plan rejects max for the stated standard task.", "The explanation states the compound evidence required for a max exception."],
+      "fail_signals": ["Allows max without critical risk and an additional verified trigger.", "Uses task difficulty alone as max justification."],
+      "machine_expectations": {"required_substrings": ["max", "rejected", "critical risk", "unresolved high-impact ambiguity", "repeated verified failure"], "forbidden_substrings": ["I select max reasoning for this standard task", "I allow max solely because the task is difficult"]}
     }
   ]
 }

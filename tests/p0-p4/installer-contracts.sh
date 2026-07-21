@@ -82,7 +82,7 @@ if HOME="$INSTALL_HOME" bash "$FRAMEWORK_DIR/install.sh" --agent codex --skill a
             && grep -Fq "The orchestrator owns framework state files" "$agents_file" \
             && grep -Fq ".codex/context-map.md" "$agents_file" \
             && grep -Fq "Do not infer that subagents are unavailable from the absence of a visible tool name" "$agents_file" \
-            && grep -Fq 'Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>' "$agents_file" \
+            && grep -Fq 'Req: <requested model>/<requested reasoning> | Real: <effective model|pending-runtime>/<effective reasoning|pending-runtime> | <task>' "$agents_file" \
             && grep -Fq "Preserve user-authored project files and existing dirty work." "$agents_file"; then
             pass
         else

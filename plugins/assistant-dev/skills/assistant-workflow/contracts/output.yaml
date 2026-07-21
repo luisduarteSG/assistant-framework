@@ -17,20 +17,20 @@ completion_tiers:
   small:
     controller_intensity: light
     required_artifacts: [completion_policy, changed_files, validation_results, fresh_review_result]
-    conditional_artifacts: [triage_result, subagent_evidence, agent_routing_plan, test_results, debugging_result, artifact_contract, manual_test_steps, manual_verification_result, learning_controller, workflow_experiment_ledger, loop_readiness_assessment]
+    conditional_artifacts: [triage_result, subagent_evidence, agent_routing_plan, title_metadata, test_results, debugging_result, artifact_contract, manual_test_steps, manual_verification_result, learning_controller, workflow_experiment_ledger, loop_readiness_assessment]
     review_gate: "fresh review after relevant validation; full independent review only when risk or another trigger promotes the work"
     checkpoint_policy: "inline plan/check summary is enough; exact phase markers are required only by strict intensity, explicit project policy, or user request"
   medium:
     controller_intensity: standard
     intensity_policy: "ordinary medium+ non-harness work keeps harness_capable=false and qa_evaluation_mode=not_required by default; standard does not require Done Contract, Harness Recipe, Trace Ledger, Replay Packet, Artifact Reference Ledger, or QA evaluation."
     required_artifacts: [completion_policy, triage_result, changed_files, validation_results, subagent_evidence, agent_routing_plan, spec_review_result, review_result, plan_document]
-    conditional_artifacts: [test_results, task_journal, context_map, slice_manifest, single_slice_rationale, slice_verification_summary, metrics_entry, manual_test_steps, manual_verification_result, learning_controller, candidate_search_result, workflow_experiment_ledger, loop_readiness_assessment, done_contract, harness_recipe, harness_run_state, trace_ledger, replay_packet, pivot_restart_decision, artifact_reference_ledger, qa_evaluation_result]
+    conditional_artifacts: [test_results, title_metadata, task_journal, context_map, slice_manifest, single_slice_rationale, slice_verification_summary, metrics_entry, manual_test_steps, manual_verification_result, learning_controller, candidate_search_result, workflow_experiment_ledger, loop_readiness_assessment, done_contract, harness_recipe, harness_run_state, trace_ledger, replay_packet, pivot_restart_decision, artifact_reference_ledger, qa_evaluation_result]
     review_gate: "spec review plus code quality review, with independent QA evaluation when required and evidence matched to the approved plan"
     checkpoint_policy: "task journal or carried-forward state records phase transitions; visible updates use concise natural language unless exact markers were explicitly triggered"
   large_critical:
     controller_intensity: strict
     required_artifacts: [completion_policy, triage_result, phase_checkpoints, changed_files, test_results, validation_results, subagent_evidence, agent_routing_plan, spec_review_result, review_result, task_journal, context_map, context_budget_note, slice_manifest, slice_verification_summary, plan_document]
-    conditional_artifacts: [debugging_result, artifact_contract, pattern_retrieval_note, decomposition_plan_review, single_slice_rationale, metrics_entry, manual_test_steps, manual_verification_result, learning_controller, candidate_search_result, workflow_experiment_ledger, loop_readiness_assessment, done_contract, harness_recipe, harness_run_state, trace_ledger, replay_packet, pivot_restart_decision, artifact_reference_ledger, qa_evaluation_result, verified_skill_distillation]
+    conditional_artifacts: [debugging_result, artifact_contract, title_metadata, pattern_retrieval_note, decomposition_plan_review, single_slice_rationale, metrics_entry, manual_test_steps, manual_verification_result, learning_controller, candidate_search_result, workflow_experiment_ledger, loop_readiness_assessment, done_contract, harness_recipe, harness_run_state, trace_ledger, replay_packet, pivot_restart_decision, artifact_reference_ledger, qa_evaluation_result, verified_skill_distillation]
     review_gate: "full strict evidence, security/operability review when applicable, QA evaluation when required, and all slice criteria verified"
     checkpoint_policy: "explicit phase checkpoints are required"
 
@@ -639,9 +639,17 @@ artifacts:
     required: conditional
     condition: "subagent_execution_mode == delegated"
     description: "Public per-dispatch routing record. It selects for verified outcome efficiency and records what the runtime actually accepted."
-    validation: "Every native dispatch has one entry before invocation with effective_configuration=pending_runtime_confirmation; it is updated from the runtime result and never copied from requested_configuration without evidence."
+    validation: "Every native dispatch has one entry before invocation with route_id, agent_name, and effective_configuration=pending_runtime_confirmation. Runtime evidence alone may make effective_configuration confirmed; unavailable records an absent or rejected override, and requested_configuration is never copied as effective."
     on_fail: "Block the native dispatch until the routing plan is complete, then record the runtime result or the explicit fallback."
     object_fields:
+      - name: route_id
+        type: enum
+        required: true
+        enum_values: [map_fast, discover_balanced, discover_frontier, implement_balanced, implement_frontier, verify_balanced, verify_frontier, design_frontier, review_frontier, qa_frontier]
+      - name: agent_name
+        type: string
+        required: true
+        validation: "Matches route_id and the copied requested_configuration route_id/agent_name as one canonical Route policy row in references/subagent-dispatch.md; this validates recorded selection intent and does not claim runtime enforcement."
       - name: role
         type: string
         required: true
@@ -666,10 +674,84 @@ artifacts:
       - name: requested_configuration
         type: object
         required: true
+        object_fields:
+          - name: route_id
+            type: enum
+            required: true
+            enum_values: [map_fast, discover_balanced, discover_frontier, implement_balanced, implement_frontier, verify_balanced, verify_frontier, design_frontier, review_frontier, qa_frontier]
+            validation: "Matches the parent route_id and its canonical Route policy row in references/subagent-dispatch.md."
+          - name: agent_name
+            type: string
+            required: true
+            validation: "Matches the parent agent_name and its canonical Route policy row in references/subagent-dispatch.md."
+          - name: model
+            type: string
+            required: true
+          - name: reasoning_effort
+            type: enum
+            required: true
+            enum_values: [low, medium, high, xhigh, max]
+          - name: model_reasoning_effort
+            type: enum
+            required: false
+            enum_values: [low, medium, high, xhigh, max]
+            description: "Optional native subtask override; when present it matches the requested reasoning_effort intent."
+          - name: strategy
+            type: string
+            required: true
       - name: effective_configuration
         type: object
         required: true
+        object_fields:
+          - name: status
+            type: enum
+            required: true
+            enum_values: [pending_runtime_confirmation, confirmed, unavailable]
+          - name: agent_name
+            type: string
+            required: true
+          - name: model
+            type: string
+            required: false
+          - name: reasoning_effort
+            type: string
+            required: false
+          - name: evidence_source
+            type: string
+            required: true
       - name: runtime_fallback
+        type: object
+        required: true
+        object_fields:
+          - name: strategy
+            type: string
+            required: true
+          - name: reason
+            type: string
+            required: true
+          - name: evidence
+            type: string
+            required: false
+
+  - name: title_metadata
+    type: object
+    required: conditional
+    condition: "a top-level native task title or native subagent dispatch is in scope"
+    description: "Evidence-backed title intent and effective state; requested text alone never proves title mutation."
+    validation: "Uses the exact Req: <requested model>/<requested reasoning> | Real: <effective model|pending-runtime>/<effective reasoning|pending-runtime> | <task> shape. pending_runtime_confirmation retains pending-runtime for both effective fields until native title API or runtime/tool evidence confirms them; unavailable records the surface limitation."
+    on_fail: "Record requested title intent and pending or unavailable evidence truthfully; do not claim the title was set without native title API or runtime/tool evidence."
+    object_fields:
+      - name: requested_title
+        type: string
+        required: true
+      - name: effective_title
+        type: string
+        required: true
+      - name: status
+        type: enum
+        required: true
+        enum_values: [pending_runtime_confirmation, confirmed, unavailable]
+      - name: evidence_source
         type: string
         required: true
 

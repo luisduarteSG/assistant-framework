@@ -29,6 +29,11 @@ def task_file(project):
     return candidate if candidate.is_file() else None
 
 
+def task_identity(project):
+    journal = task_file(project)
+    return scalar(journal.read_text(encoding="utf-8"), "Created") if journal else ""
+
+
 def scalar(text, name):
     prefix = name.lower() + ":"
     for line in text.splitlines():
@@ -83,10 +88,16 @@ def lifecycle_complete(project, required):
     if not events_path.is_file():
         return False
     events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    current_identity = task_identity(project)
+    if not current_identity:
+        return False
+    events = [event for event in events if event.get("task_created") == current_identity]
     for role in required:
         token = role.lower().replace(" ", "-").replace("/", "-")
-        seen = {event.get("event") for event in events if token in str(event.get("agent_type", "")).lower()}
-        if not {"SubagentStart", "SubagentStop"}.issubset(seen):
+        role_events = [event for event in events if token in str(event.get("agent_type", "")).lower()]
+        started_ids = {event.get("agent_id") for event in role_events if event.get("event") == "SubagentStart" and event.get("agent_id")}
+        stopped_ids = {event.get("agent_id") for event in role_events if event.get("event") == "SubagentStop" and event.get("agent_id")}
+        if not started_ids.intersection(stopped_ids):
             return False
     return True
 
@@ -128,8 +139,8 @@ def prompt(payload):
                 passed, _ = agent_gate(project, text)
                 agents = "evidence complete" if passed else "evidence pending"
                 gate = "complete" if passed and review_complete(text) else "agents and review"
-    agents = f"{agents} | Model: {model}"
-    emit_context("UserPromptSubmit", f"WORKFLOW STATUS (mandatory every prompt): Start your next user-visible reply with exactly: Fase: {phase} | Agentes: {agents} | Próximo gate: {gate}\nDo not claim that a standard or strict workflow is complete while its native agent evidence or review gate is pending. Keep native dispatch under the orchestrator; this hook only reports and validates evidence.")
+    agents = f"{agents} | Modelo solicitado: {model}"
+    emit_context("UserPromptSubmit", f"WORKFLOW STATUS (mandatory every prompt): Start your next user-visible reply with exactly: Fase: {phase} | Agentes: {agents} | Next gate: {gate}\nDo not claim that a standard or strict workflow is complete while its native agent evidence or review gate is pending. Keep native dispatch under the orchestrator; this hook only reports and validates evidence.")
 
 
 def subagent(payload):
@@ -141,7 +152,12 @@ def subagent(payload):
     state_dir = project / ".codex"
     state_dir.mkdir(parents=True, exist_ok=True)
     record = {key: payload.get(key, "") for key in ("agent_id", "turn_id", "session_id")}
+    if identity := task_identity(project):
+        record["task_created"] = identity
     record.update({"event": event, "agent_type": agent, "agent_name": agent, "timestamp": datetime.now(UTC).isoformat()})
+    for key in ("model", "model_reasoning_effort"):
+        if payload.get(key) not in (None, ""):
+            record[key] = payload[key]
     with (state_dir / "subagent-events.jsonl").open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(record) + "\n")
     if event == "SubagentStart":

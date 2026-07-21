@@ -1,5 +1,33 @@
 #!/usr/bin/env bash
 
+if [[ -z "${P0P4_HARNESS_LOADED:-}" ]]; then
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/p0p4-harness.sh"
+fi
+p0p4_bootstrap_suite "${BASH_SOURCE[0]}"
+
+toml_has_single_exact_value() {
+    local toml_file="$1"
+    local key="$2"
+    local expected_value="$3"
+
+    awk -v key="$key" -v expected_value="$expected_value" '
+        /^[[:space:]]*#/ { next }
+        $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+            value = $0
+            sub(/^[^=]*=[[:space:]]*/, "", value)
+            sub(/[[:space:]]*#.*/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+
+            if (value == "\"" expected_value "\"") {
+                matching_keys++
+            } else {
+                invalid_key_value = 1
+            }
+        }
+        END { exit !(matching_keys == 1 && !invalid_key_value) }
+    ' "$toml_file"
+}
+
 test_start "adaptive Codex install applies routing defaults, preserves unrelated content, and remains idempotent"
 ADAPTIVE_ROUTING_HOME="$(mktemp -d)"
 p0p4_register_cleanup "$ADAPTIVE_ROUTING_HOME"
@@ -75,3 +103,84 @@ if [[ "${#adaptive_agent_failures[@]}" -eq 0 ]]; then
 else
     fail "missing adaptive agent baselines: ${adaptive_agent_failures[*]}"
 fi
+
+test_start "Codex adaptive routing profiles match declared maps, sandbox contracts, and installed aliases"
+adaptive_profile_failures=()
+for expectation in \
+    'code-mapper-fast:gpt-5.6-luna:low:read-only' \
+    'explorer-frontier:gpt-5.6-sol:high:read-only' \
+    'code-writer-frontier:gpt-5.6-sol:high:workspace-write' \
+    'builder-tester-frontier:gpt-5.6-sol:high:workspace-write'; do
+    IFS=':' read -r role model reasoning sandbox <<< "$expectation"
+    file="$FRAMEWORK_DIR/agents/codex/$role.toml"
+    installed_file="$ADAPTIVE_ROUTING_HOME/.codex/agents/$role.toml"
+    if [[ ! -f "$file" ]] \
+        || ! toml_has_single_exact_value "$file" name "$role" \
+        || ! toml_has_single_exact_value "$file" model "$model" \
+        || ! toml_has_single_exact_value "$file" model_reasoning_effort "$reasoning" \
+        || ! toml_has_single_exact_value "$file" sandbox_mode "$sandbox"; then
+        adaptive_profile_failures+=("$role map or sandbox")
+    fi
+    if [[ ! -f "$installed_file" ]] \
+        || ! toml_has_single_exact_value "$installed_file" name "$role" \
+        || ! toml_has_single_exact_value "$installed_file" model "$model" \
+        || ! toml_has_single_exact_value "$installed_file" model_reasoning_effort "$reasoning" \
+        || ! toml_has_single_exact_value "$installed_file" sandbox_mode "$sandbox" \
+        || ! cmp -s "$file" "$installed_file"; then
+        adaptive_profile_failures+=("$role installed alias")
+    fi
+done
+if [[ "${#adaptive_profile_failures[@]}" -eq 0 ]]; then
+    pass
+else
+    fail "invalid adaptive routing profiles: ${adaptive_profile_failures[*]}"
+fi
+
+test_start "canonical Route policy rows match every selected Codex TOML profile"
+if python - "$FRAMEWORK_DIR" <<'PY'
+import re
+import sys
+import tomllib
+from pathlib import Path
+
+root = Path(sys.argv[1])
+policy = (root / "skills/assistant-workflow/references/subagent-dispatch.md").read_text(encoding="utf-8")
+section = policy.split("### Route policy (canonical)", 1)[1].split("###", 1)[0]
+rows = re.findall(
+    r"^\| `([^`]+)` \| `([^`]+)` \| `([^`]+)` / `([^`]+)` \|",
+    section,
+    flags=re.MULTILINE,
+)
+assert rows, "canonical Route policy table has no parseable rows"
+expected_route_ids = {
+    "map_fast",
+    "discover_balanced",
+    "discover_frontier",
+    "implement_balanced",
+    "implement_frontier",
+    "verify_balanced",
+    "verify_frontier",
+    "design_frontier",
+    "review_frontier",
+    "qa_frontier",
+}
+route_ids = [route_id for route_id, _, _, _ in rows]
+assert len(route_ids) == len(expected_route_ids), f"expected {len(expected_route_ids)} canonical routes, found {len(route_ids)}"
+assert len(set(route_ids)) == len(route_ids), "canonical Route policy contains duplicate route IDs"
+assert set(route_ids) == expected_route_ids, f"canonical Route policy route IDs differ: {sorted(set(route_ids) ^ expected_route_ids)}"
+for route_id, agent_name, model, reasoning in rows:
+    profile_path = root / "agents/codex" / f"{agent_name}.toml"
+    assert profile_path.is_file(), f"{route_id}: missing profile {profile_path.name}"
+    with profile_path.open("rb") as stream:
+        profile = tomllib.load(stream)
+    assert profile.get("name") == agent_name, f"{route_id}: profile name mismatch"
+    assert profile.get("model") == model, f"{route_id}: model mismatch"
+    assert profile.get("model_reasoning_effort") == reasoning, f"{route_id}: reasoning mismatch"
+PY
+then
+    pass
+else
+    fail "canonical Route policy rows must match every selected Codex TOML profile"
+fi
+
+p0p4_finish_suite "${BASH_SOURCE[0]}"

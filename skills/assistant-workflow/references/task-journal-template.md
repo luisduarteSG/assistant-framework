@@ -50,7 +50,7 @@ Subagent authorization scope:
 Agent routing plans:
 - [one per native dispatch: route_id | agent_name | role | difficulty | capability_tier | reasoning_effort | selection_factors | escalation_trigger | requested_configuration | effective_configuration | runtime_fallback]
 Title metadata:
-- Requested title: [Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>]
+- Requested title: [Req: <requested model>/<requested reasoning> | Real: <effective model|pending-runtime>/<effective reasoning|pending-runtime> | <task>]
 - Effective title: [same shape; retain pending-runtime until runtime/title API evidence]
 - Status: [pending_runtime_confirmation | confirmed | unavailable]
 - Evidence source: [pending | native title API result | runtime/tool result | surface limitation]
@@ -70,7 +70,7 @@ Plan approval: [yes/no + date]
 [subagent evidence required by completion gates]
 - Required roles: Code Writer, Builder/Tester, Code Reviewer; QA Evaluator when required; Code Mapper/Explorer/Architect by size/risk; Reviewer for legacy compatibility.
 - Execution mode: delegated | direct_fallback | not_applicable
-- Native dispatch evidence: delegated roles reference the agent id, task name, thread, or tool result exposed by the runtime and bind it to this journal's `Created:` identity.
+- Native dispatch evidence: delegated roles reference the agent id, task name, thread, or tool result exposed by the runtime and bind it to this journal's `Created:` identity. Hook lifecycle events record this value as `task_created` when the journal is available; completion accepts a Start and Stop only when both have the current identity and the same non-empty `agent_id` for the required role.
 - Routing configuration evidence: each native dispatch records `route_id`, `agent_name`, and its `agent_routing_plan` before invocation. Validate the route/agent pair and its requested copies against the canonical Route policy in `references/subagent-dispatch.md`. Record requested `model`/`reasoning_effort` separately from the runtime-confirmed `effective_configuration`; a requested static profile is not evidence of runtime configuration. Use `unavailable` with evidence when an override is absent or rejected, and do not leave `pending_runtime_confirmation` at a completion gate.
 - Title evidence: record `title_metadata` for the top-level task and every native subagent dispatch. Requested title text is intent only; retain `pending_runtime_confirmation` or record `unavailable` until native title API or runtime/tool evidence supports an effective title.
 - Direct fallback reason: [authorization_denied | subagents_unavailable | policy_disallowed | N/A]

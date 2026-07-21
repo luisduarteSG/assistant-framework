@@ -164,7 +164,9 @@ backup_once() {
     local source_file="$1"
     local backup_file="${source_file}.assistant-framework-adaptive-routing.bak"
 
-    [[ -f "$source_file" && ! -e "$backup_file" ]] && cp -p "$source_file" "$backup_file"
+    if [[ -f "$source_file" && ! -e "$backup_file" ]]; then
+        cp -p "$source_file" "$backup_file"
+    fi
 }
 
 apply_adaptive_codex_config() {
@@ -1399,7 +1401,7 @@ Codex uses installed skills through native skill routing. When a skill matches, 
 - Delegation consent is required only before an actual subagent spawn. Do not ask during preparation merely because agents might be useful. Ask once immediately before the first spawn unless the user already authorized that scope. Continue safe non-spawn work while authorization is unresolved.
 - After authorization, use native Codex subagents by configured name. Do not infer that subagents are unavailable from the absence of a visible tool name; use direct fallback only after denial, policy restriction, or a real unavailable-agent failure.
 - Select model capability and reasoning effort to minimize the expected total cost of a verified outcome, accounting for difficulty, uncertainty, impact, reversibility, validation strength, and likely rework.
-- Before a native task starts work, set its title through the Codex title API as \`Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>\`. Update \`Real\` only from runtime evidence; never present a requested configuration as effective.
+- Before a native task starts work, set its title through the Codex title API as \`Req: <requested model>/<requested reasoning> | Real: <effective model|pending-runtime>/<effective reasoning|pending-runtime> | <task>\`. Update \`Real\` only from runtime evidence; never present a requested configuration as effective.
 - Verify changes with the relevant repository commands. Review the result against the approved scope and fix material findings before handoff; use independent review when the active skill or risk requires it.
 - Keep credentials, secrets, PII, and private endpoints out of code, logs, task state, and memory.
 <!-- $AGENTS_MD_MARKER_END -->"

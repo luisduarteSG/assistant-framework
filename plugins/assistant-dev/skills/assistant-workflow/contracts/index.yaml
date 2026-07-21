@@ -39,13 +39,18 @@ load_sets:
     budget_words: 12000
   selected_handoff:
     selectors:
+      - id: workflow-native-dispatch-contracts
+        path: contracts/handoffs.yaml
+        section: native_dispatch_contracts
+        key: id
+        names: [agent_routing_plan, title_metadata]
       - id: workflow-selected-handoff
         path: contracts/handoffs.yaml
         section: handoffs
         key: name
         name_from: selected_handoff_name
         allowed_names: [orchestrator_to_code_mapper, orchestrator_to_explorer, orchestrator_to_architect_decompose, orchestrator_to_architect, orchestrator_to_code_writer, orchestrator_to_builder_tester, orchestrator_to_reviewer, orchestrator_to_qa_evaluator]
-    budget_words: 15000
+    budget_words: 17000
   completion:
     selectors:
       - id: workflow-completion-artifact
@@ -53,7 +58,7 @@ load_sets:
         section: artifacts
         key: name
         name_from: applicable_completion_artifact
-        allowed_names: [triage_result, completion_policy, phase_checkpoints, changed_files, debugging_result, test_results, validation_results, fresh_review_result, review_result, qa_evaluation_result, spec_review_result, learning_controller, manual_test_steps, manual_verification_result, subagent_evidence, agent_routing_plan, task_journal, context_map, context_budget_note, pattern_retrieval_note, context_handoff_packet, artifact_contract, artifact_reference_ledger, done_contract, harness_recipe, harness_run_state, trace_ledger, replay_packet, pivot_restart_decision, decomposition_plan_review, slice_manifest, single_slice_rationale, slice_verification_summary, metrics_entry, candidate_search_result, workflow_experiment_ledger, loop_readiness_assessment, plan_document, user_approval, verified_skill_distillation]
+        allowed_names: [triage_result, completion_policy, phase_checkpoints, changed_files, debugging_result, test_results, validation_results, fresh_review_result, review_result, qa_evaluation_result, spec_review_result, learning_controller, manual_test_steps, manual_verification_result, subagent_evidence, agent_routing_plan, title_metadata, task_journal, context_map, context_budget_note, pattern_retrieval_note, context_handoff_packet, artifact_contract, artifact_reference_ledger, done_contract, harness_recipe, harness_run_state, trace_ledger, replay_packet, pivot_restart_decision, decomposition_plan_review, slice_manifest, single_slice_rationale, slice_verification_summary, metrics_entry, candidate_search_result, workflow_experiment_ledger, loop_readiness_assessment, plan_document, user_approval, verified_skill_distillation]
     budget_words: 12000
 
 fallback:

@@ -16,9 +16,11 @@ Map tiers into the public `agent_routing_plan`: `fast`, `balanced`, and
 `frontier`. Pair them with difficulty/effort deliberately: bounded/low for
 contained inventory work; standard/medium for ordinary implementation or
 verification; complex/high for coupled analysis; critical/xhigh for high-impact
-decisions. `max` is an exception, not a default, and must cite critical risk,
-unresolved high-impact ambiguity, or repeated verified failure in
-`selection_factors` and `escalation_trigger`.
+decisions. `max` is an exception, not a default. It requires critical risk
+paired with unresolved high-impact ambiguity or repeated verified failure after
+lower adequate efforts; cite that compound trigger in `selection_factors` and
+`escalation_trigger`. Critical risk alone, ambiguity alone, or failure alone
+does not permit `max`.
 
 Provider examples are only examples, not requirements:
 
@@ -27,6 +29,15 @@ Provider examples are only examples, not requirements:
 - Gemini: fast ≈ Flash-class, balanced ≈ Pro-class/default coding model, strongest ≈ highest-reasoning Pro/Ultra-class model available.
 
 If the runtime does not expose model overrides for subagents, keep the role separation and tool-access constraints; use the default model and include the tier as guidance in the dispatch prompt.
+
+## Codex adaptive route profiles
+
+For Codex dispatches, select the canonical route ID and native agent name from
+the Route policy in `references/subagent-dispatch.md` before invoking the
+runtime. That policy is the sole route-to-agent/profile mapping. Record its
+profile as `requested_configuration`, then update `effective_configuration`
+only from runtime evidence. Luna remains mapping-only; promotion requires the
+evidence and max-effort exception rules stated in that canonical policy.
 
 ## Installed agents
 

@@ -47,7 +47,7 @@ enforcement or effective configuration.
 | `route_id` | Native `agent_name` | Static profile | Use |
 |---|---|---|---|
 | `map_fast` | `code-mapper-fast` | `gpt-5.6-luna` / `low` | Bounded, read-only structural mapping only |
-| `discover_balanced` | `explorer` | `gpt-5.6-terra` / `medium` | Ordinary bounded discovery with meaningful tracing |
+| `discover_balanced` | `explorer` | `gpt-5.6-terra` / `high` | Ordinary bounded discovery with meaningful tracing |
 | `discover_frontier` | `explorer-frontier` | `gpt-5.6-sol` / `high` | Critical or conflicting-evidence investigation |
 | `implement_balanced` | `code-writer` | `gpt-5.6-terra` / `medium` | Approved standard implementation slice |
 | `implement_frontier` | `code-writer-frontier` | `gpt-5.6-sol` / `high` | High-impact implementation needing deeper reasoning |
@@ -102,7 +102,7 @@ completion if it is still pending at the relevant completion gate.
 Before a top-level Codex task starts work, set its task title through the
 native title API using this exact compact shape:
 
-`Req: <requested model>/<requested reasoning> | Real: <effective model>/<effective reasoning|pending-runtime> | <task>`
+`Req: <requested model>/<requested reasoning> | Real: <effective model|pending-runtime>/<effective reasoning|pending-runtime> | <task>`
 
 Use `pending-runtime` until the runtime/tool result confirms the effective
 configuration. Update the title after that confirmation. The current native
