@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/assistant/workflow-enforcer.sh"
+            "command": "$PYTHON \"$HOME/.codex/hooks/assistant/codex-workflow-hooks.py\" prompt"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/assistant/subagent-monitor.sh"
+            "command": "$PYTHON \"$HOME/.codex/hooks/assistant/codex-workflow-hooks.py\" subagent"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/assistant/subagent-monitor.sh"
+            "command": "$PYTHON \"$HOME/.codex/hooks/assistant/codex-workflow-hooks.py\" subagent"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/assistant/stop-review.sh"
+            "command": "$PYTHON \"$HOME/.codex/hooks/assistant/codex-workflow-hooks.py\" stop"
           }
         ]
       }

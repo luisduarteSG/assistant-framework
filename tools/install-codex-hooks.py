@@ -17,12 +17,12 @@ def as_list(value):
 def is_managed(command, names):
     if not isinstance(command, str):
         return False
-    token = re.sub(r"\s+", " ", command.strip()).split(" ", 1)[0]
-    return any(token.endswith("/" + name) for name in names)
+    normalized = command.replace("\\", "/")
+    return any("/" + name in normalized for name in names)
 
 
 def main(settings_file, source_settings, hooks_target):
-    managed = {"workflow-enforcer.sh", "subagent-monitor.sh", "stop-review.sh"}
+    managed = {"workflow-enforcer.sh", "subagent-monitor.sh", "stop-review.sh", "codex-workflow-hooks.py"}
     if os.path.exists(settings_file):
         with open(settings_file, encoding="utf-8") as stream:
             existing = json.load(stream)
@@ -57,7 +57,12 @@ def main(settings_file, source_settings, hooks_target):
         for group in groups:
             updated_group = dict(group)
             updated_group["hooks"] = [
-                dict(hook, command=hook["command"].replace("$HOME/.codex/hooks/assistant", hooks_target))
+                dict(
+                    hook,
+                    command=hook["command"]
+                    .replace("$PYTHON", f'"{sys.executable.replace(chr(92), "/")}"')
+                    .replace("$HOME/.codex/hooks/assistant", hooks_target.replace("\\", "/")),
+                )
                 for hook in group["hooks"]
             ]
             rewritten.append(updated_group)

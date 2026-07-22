@@ -14,13 +14,13 @@ import sys
 home = sys.argv[1]
 with open(home + "/.codex/hooks.json", encoding="utf-8") as stream:
     hooks = json.load(stream)["hooks"]
-root = home + "/.codex/hooks/assistant/"
 commands = [hook["command"] for groups in hooks.values() for group in groups for hook in group["hooks"]]
-assert root + "workflow-enforcer.sh" in commands
-assert root + "subagent-monitor.sh" in commands
-assert root + "stop-review.sh" in commands
+assert any("/codex-workflow-hooks.py\" prompt" in command for command in commands)
+assert sum("/codex-workflow-hooks.py\" subagent" in command for command in commands) == 2
+assert any("/codex-workflow-hooks.py\" stop" in command for command in commands)
+assert not any(command.endswith(("workflow-enforcer.sh", "subagent-monitor.sh", "stop-review.sh")) for command in commands)
 assert "/tmp/custom-stop.sh" in commands
-assert commands.count(root + "workflow-enforcer.sh") == 1
+assert sum("/codex-workflow-hooks.py\" prompt" in command for command in commands) == 1
 PY
 }
 
